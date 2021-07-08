@@ -37,6 +37,9 @@ class Agents:
         elif args.alg == 'reinforce':
             from policy.reinforce import Reinforce
             self.policy = Reinforce(args)
+        elif   args.alg == 'task_decomposition':
+            from policy.task_decomposition import TD
+            self.policy = TD
         else:
             raise Exception("No such algorithm")
         self.args = args

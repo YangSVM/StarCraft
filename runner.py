@@ -45,7 +45,8 @@ class Runner:
                 episodes.append(episode)
                 time_steps += steps
                 # print(_)
-            # episode的每一项都是一个(1, episode_len, n_agents, 具体维度)四维数组，下面要把所有episode的的obs拼在一起
+            # episode的每一项都是一个(1, episode_len, n_agents, 具体维度)四维数组.但如s等与agent无关的，仅有三维(1, episode_len,  具体维度)
+            # 下面要把所有episode的的key拼在一起
             episode_batch = episodes[0]
             episodes.pop(0)
             for episode in episodes:

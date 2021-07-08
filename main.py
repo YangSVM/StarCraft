@@ -1,6 +1,6 @@
 from runner import Runner
 from smac.env import StarCraft2Env
-from common.arguments import get_common_args, get_coma_args, get_mixer_args, get_centralv_args, get_reinforce_args, get_commnet_args, get_g2anet_args
+from common.arguments import get_common_args, get_coma_args, get_mixer_args, get_centralv_args, get_reinforce_args, get_commnet_args, get_g2anet_args, get_task_decomposition_args
 
 
 if __name__ == '__main__':
@@ -29,6 +29,10 @@ if __name__ == '__main__':
         args.state_shape = env_info["state_shape"]
         args.obs_shape = env_info["obs_shape"]
         args.episode_limit = env_info["episode_limit"]
+
+        if args.alg.find('task_decomposition') > -1:
+            args = get_task_decomposition_args(args, env)
+
         runner = Runner(env, args)
         if not args.evaluate:
             runner.run(i)

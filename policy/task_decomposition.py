@@ -2,9 +2,9 @@ import torch
 import os
 from network.base_net import RNN
 from network.qmix_net import QMixNet
+from network.task_decomposition import TaskDecomposition
 
-
-class QMIX:
+class TD:
     def __init__(self, args):
         self.n_actions = args.n_actions
         self.n_agents = args.n_agents
@@ -60,7 +60,7 @@ class QMIX:
         在learn的时候，抽取到的数据是四维的，四个维度分别为 1——第几个episode 2——episode中第几个transition
         3——第几个agent的数据 4——具体obs维度。因为在选动作时不仅需要输入当前的inputs，还要给神经网络输入hidden_state，
         hidden_state和之前的经验相关，因此就不能随机抽取经验进行学习。所以这里一次抽取多个episode，然后一次给神经网络
-        传入每个episode的同一个位置的transition (是因为rnn?)
+        传入每个episode的同一个位置的transition
         '''
         episode_num = batch['o'].shape[0]
         self.init_hidden(episode_num)
@@ -110,7 +110,6 @@ class QMIX:
             self.target_qmix_net.load_state_dict(self.eval_qmix_net.state_dict())
 
     def _get_inputs(self, batch, transition_idx):
-        # 返回数据(reuse网络情况下)：inputs数据维度(n_episode* n_agent, obs维度+u_onehot维度+agent_onehot维度)
         # 取出所有episode上该transition_idx的经验，u_onehot要取出所有，因为要用到上一条
         obs, obs_next, u_onehot = batch['o'][:, transition_idx], \
                                   batch['o_next'][:, transition_idx], batch['u_onehot'][:]

@@ -32,7 +32,26 @@
 3. 
 4. main函数进入，使用qmix，则相当于使用get_common_args， get_mixer_args中的参数；没有evaluate
 5. runner中，采用的是Agent, RolloutWorker, ReplayBuffer最简单的三个类。
-6. 
+6. runner.run 每次采集一个episode时，记录游戏长度(steps)，(注意返回的episode数组还是固定长度的，但是填充了0)，并将steps累加成time_step，当time_step>5000时，evaluate一次，保存并更新图片，胜率等结果。如果time_step> 2百万，则停止。
+7. 上述 runner.run 被运行8次重复试验。
+8. 学习流程：采集数据，存入buffer，从buffer中sample样本，用样本进行train。
+   - 采集数据：从环境中采集得到episodes。list.每个元素是一个dict，dict中每个key维度均为：(1, episode_len, n_agents, 具体维度).episode_batch是一个dict，每个key都是(n_episode, episode_len, n_agents, 具体维度)
+   - 存入buffer并且从buffer中sample出mini_batch进行训练。dict中每个key都是(n_episode, episode_len, n_agents, 具体维度)
+   - 进入train时，首先会将mini_batch中的episode_len进行裁剪。因为可能存在一个batch中都是很快就terminated的场景。裁剪后为batch。dict中每个value都是(n_episode, max_episode_len, n_agents, 具体维度)。max_episode_len为所有episode中最长的episode.
+   - 训练时，每经过args.save_cycle次训练，保存一次模型.
+   - 每次进行训练时:
+     - init_hidden。将输入轨迹的rnn的 hidden_state 设置为0。
+     - get_q_valus：计算q函数。
+       - get_input：截取当前trasition_idx时刻的输入值(obs, action_onehot, agent_onehot)，self.eval_hidden 和 self.target_hidden 保存当前时刻的hidden_states。
+       - 将input和hidden_states输入到rnn中。得到q_evals和q_targets。维度均为(n_episode, max_episode_len, n_agents, 动作空间维度)
+       - 因为IGM，且智能体仅采取了一个动作。q_evals 和 q_targets维度缩减成(n_episode, max_episode_len, n_agents)
+       - 送入eval_qmix_net 和 target_qmix_net中，计算全局的Q值。计算TD error，并且反向传播。
+   - QMIX网络。
+     - 输入：q_evals. 维度(n_episode, max_episode_len, n_agents)；状态s，维度(n_episode, max_episode_len, 状态空间维度)
+     - 输出：Q_total。维度(n_episode, max_episode_len, 1)
+     - 网络设计：首先f(states)生成w1,b1,w2,b2，所以需要相应的4个超参数网络。超参数网络均为nn.Linear，hyper_w1的网络为输入(n, n_states), 输出(n, n_agents * qmix_hidden_dim), 
+     - 使用torch.bmm乘法。为torch.mm的3D版本。torch.mm只能做2D矩阵的乘法。torch.bmm相当于输入维度都在第一维增加了batch维度，batch维度大小必须相同。
+9. 疑问：为什么reuse_network(所有智能体共享同样的参数)时，需要输入ID作为trajectory？
 
 ## 环境解析 - SMAC
 1. SMAC: 牛津oxwhirl组。https://github.com/oxwhirl/smac
