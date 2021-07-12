@@ -166,7 +166,7 @@ def get_task_decomposition_args(args, env):
     #  任务数量应该跟敌方智能体数量相同
     enemy_feats_size = env.get_obs_enemy_feats_size()
 
-    args.n_task = enemy_feats_size[0]
+    args.n_tasks = enemy_feats_size[0]
     return args
 
 # arguments of coma+commnet

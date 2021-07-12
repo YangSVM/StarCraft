@@ -1,7 +1,6 @@
 import torch
 import os
-from network.base_net import RNN
-from network.qmix_net import QMixNet
+from network.task_rnn import TaskRNN
 from network.task_decomposition import TaskDecomposition
 
 class TD:
@@ -10,6 +9,7 @@ class TD:
         self.n_agents = args.n_agents
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
+        self.n_tasks =  args.n_tasks
         input_shape = self.obs_shape
         # 根据参数决定RNN的输入维度
         if args.last_action:
@@ -18,15 +18,15 @@ class TD:
             input_shape += self.n_agents
 
         # 神经网络
-        self.eval_rnn = RNN(input_shape, args)  # 每个agent选动作的网络
-        self.target_rnn = RNN(input_shape, args)
-        self.eval_qmix_net = QMixNet(args)  # 把agentsQ值加起来的网络
-        self.target_qmix_net = QMixNet(args)
+        self.eval_rnn = TaskRNN(input_shape, args)  # 每个agent选动作的网络
+        self.target_rnn = TaskRNN(input_shape, args)
+        self.eval_task_net = TaskDecomposition(args)  # 把agentsQ值加起来的网络
+        self.target_qmix_net = TaskDecomposition(args)
         self.args = args
         if self.args.cuda:
             self.eval_rnn.cuda()
             self.target_rnn.cuda()
-            self.eval_qmix_net.cuda()
+            self.eval_task_net.cuda()
             self.target_qmix_net.cuda()
         self.model_dir = args.model_dir + '/' + args.alg + '/' + args.map
         # 如果存在模型则加载模型
@@ -36,16 +36,16 @@ class TD:
                 path_qmix = self.model_dir + '/qmix_net_params.pkl'
                 map_location = 'cuda:0' if self.args.cuda else 'cpu'
                 self.eval_rnn.load_state_dict(torch.load(path_rnn, map_location=map_location))
-                self.eval_qmix_net.load_state_dict(torch.load(path_qmix, map_location=map_location))
+                self.eval_task_net.load_state_dict(torch.load(path_qmix, map_location=map_location))
                 print('Successfully load the model: {} and {}'.format(path_rnn, path_qmix))
             else:
                 raise Exception("No model!")
 
         # 让target_net和eval_net的网络参数相同
         self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
-        self.target_qmix_net.load_state_dict(self.eval_qmix_net.state_dict())
+        self.target_qmix_net.load_state_dict(self.eval_task_net.state_dict())
 
-        self.eval_parameters = list(self.eval_qmix_net.parameters()) + list(self.eval_rnn.parameters())
+        self.eval_parameters = list(self.eval_task_net.parameters()) + list(self.eval_rnn.parameters())
         if args.optimizer == "RMS":
             self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=args.lr)
 
@@ -74,8 +74,9 @@ class TD:
                                                              batch['terminated']
         mask = 1 - batch["padded"].float()  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
 
-        # 得到每个agent对应的Q值，维度为(episode个数, max_episode_len， n_agents， n_actions)
-        q_evals, q_targets = self.get_q_values(batch, max_episode_len)
+        # 得到每个agent对应的Q值，维度为(episode个数, max_episode_len， n_agents， n_tasks * (n_actions + 1))
+        q_evals, q_targets, i_task, i_task_target = self.get_q_values(batch, max_episode_len)
+
         if self.args.cuda:
             s = s.cuda()
             u = u.cuda()
@@ -83,15 +84,20 @@ class TD:
             s_next = s_next.cuda()
             terminated = terminated.cuda()
             mask = mask.cuda()
+        
+
+
+
         # 取每个agent动作对应的Q值，并且把最后不需要的一维去掉，因为最后一维只有一个值了
         q_evals = torch.gather(q_evals, dim=3, index=u).squeeze(3)
+
 
         # 得到target_q
         q_targets[avail_u_next == 0.0] = - 9999999
         q_targets = q_targets.max(dim=3)[0]
 
-        q_total_eval = self.eval_qmix_net(q_evals, s)
-        q_total_target = self.target_qmix_net(q_targets, s_next)
+        q_total_eval = self.eval_task_net(q_evals, s, i_task)
+        q_total_target = self.target_qmix_net(q_targets, s_next, i_task_target)
 
         targets = r + self.args.gamma * q_total_target * (1 - terminated)
 
@@ -107,7 +113,18 @@ class TD:
 
         if train_step > 0 and train_step % self.args.target_update_cycle == 0:
             self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
-            self.target_qmix_net.load_state_dict(self.eval_qmix_net.state_dict())
+            self.target_qmix_net.load_state_dict(self.eval_task_net.state_dict())
+
+    def task_selector(self, q):
+        '''选择对应的task...没有用到。写在task_rnn中
+        '''
+        episode_num, max_episode_len, _, _ = q.shape
+        # 选择对应的动作：
+        q = q.view(episode_num, max_episode_len, self.args.n_agents, self.n_tasks, -1)
+        # 1. 取最后一个维度第一个数作为task selector, 选择最擅长的task
+        task_score, i_task = q[:,:,:,:,0].max(dim = 3)
+        # 2. 取对应项相乘，计算
+        q = task_score * torch.gather(q, dim=3, index=i_task.unsqueeze(3))
 
     def _get_inputs(self, batch, transition_idx):
         # 取出所有episode上该transition_idx的经验，u_onehot要取出所有，因为要用到上一条
@@ -140,6 +157,7 @@ class TD:
     def get_q_values(self, batch, max_episode_len):
         episode_num = batch['o'].shape[0]
         q_evals, q_targets = [], []
+        i_tasks, i_task_targets= [], []
         for transition_idx in range(max_episode_len):
             inputs, inputs_next = self._get_inputs(batch, transition_idx)  # 给obs加last_action、agent_id
             if self.args.cuda:
@@ -147,19 +165,26 @@ class TD:
                 inputs_next = inputs_next.cuda()
                 self.eval_hidden = self.eval_hidden.cuda()
                 self.target_hidden = self.target_hidden.cuda()
-            q_eval, self.eval_hidden = self.eval_rnn(inputs, self.eval_hidden)  # inputs维度为(40,96)，得到的q_eval维度为(40,n_actions)
-            q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
+            q_eval, self.eval_hidden, i_task = self.eval_rnn(inputs, self.eval_hidden)  # inputs维度为(3,42)，得到的q_eval维度为(40,n_actions)
+            q_target, self.target_hidden, i_task_target= self.target_rnn(inputs_next, self.target_hidden)
 
             # 把q_eval维度重新变回(8, 5,n_actions)
             q_eval = q_eval.view(episode_num, self.n_agents, -1)
             q_target = q_target.view(episode_num, self.n_agents, -1)
+            i_task = i_task.view(episode_num, self.n_agents, -1)
+            i_task_target = i_task_target.view(episode_num, self.n_agents, -1)
             q_evals.append(q_eval)
             q_targets.append(q_target)
+            i_tasks.append(i_task)
+            i_task_targets .append(i_task_target)
         # 得的q_eval和q_target是一个列表，列表里装着max_episode_len个数组，数组的的维度是(episode个数, n_agents，n_actions)
         # 把该列表转化成(episode个数, max_episode_len， n_agents，n_actions)的数组
         q_evals = torch.stack(q_evals, dim=1)
         q_targets = torch.stack(q_targets, dim=1)
-        return q_evals, q_targets
+        i_tasks = torch.stack(i_tasks, dim=1).squeeze(-1)
+        i_task_targets = torch.stack(i_task_targets, dim=1).squeeze(-1)
+
+        return q_evals, q_targets, i_tasks, i_task_targets
 
     def init_hidden(self, episode_num):
         # 为每个episode中的每个agent都初始化一个eval_hidden、target_hidden
@@ -170,5 +195,5 @@ class TD:
         num = str(train_step // self.args.save_cycle)
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
-        torch.save(self.eval_qmix_net.state_dict(), self.model_dir + '/' + num + '_qmix_net_params.pkl')
+        torch.save(self.eval_task_net.state_dict(), self.model_dir + '/' + num + '_qmix_net_params.pkl')
         torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num + '_rnn_net_params.pkl')

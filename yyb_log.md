@@ -9,7 +9,7 @@
    ```
 
 # 环境学习
-## MPE ----弃用该环境。改写比较麻烦
+## MPE
 1. 没有好的教程，直接看源码：/path/to/mpe/multiagent/scenarios/simple_tag.py
 2. 源码可以任意修改，达到你想要的效果
 3. 使用simple_tag：红色是追逐者(我方，速度慢，源码中为 adversaries)，绿色是逃避者(敌方，速度快，源码中为good_agent)，灰色是障碍物。红方要尽快抓到绿方。
@@ -42,7 +42,7 @@
    - 每次进行训练时:
      - init_hidden。将输入轨迹的rnn的 hidden_state 设置为0。
      - get_q_valus：计算q函数。
-       - get_input：截取当前trasition_idx时刻的输入值(obs, action_onehot, agent_onehot)，self.eval_hidden 和 self.target_hidden 保存当前时刻的hidden_states。
+       - get_input：截取当前trasition_idx时刻(固定episode中某个时刻)的输入值(obs, action_onehot, agent_onehot)，self.eval_hidden 和 self.target_hidden 保存当前时刻的hidden_states。输出q_eval, self.eval_hidden,是(n_agent, n_actions).
        - 将input和hidden_states输入到rnn中。得到q_evals和q_targets。维度均为(n_episode, max_episode_len, n_agents, 动作空间维度)
        - 因为IGM，且智能体仅采取了一个动作。q_evals 和 q_targets维度缩减成(n_episode, max_episode_len, n_agents)
        - 送入eval_qmix_net 和 target_qmix_net中，计算全局的Q值。计算TD error，并且反向传播。
@@ -102,6 +102,10 @@
       将以上矩阵或向量flatten再concate起来.
 9. QMIX源码阅读：
    - 6688
+
+
+## 代码变量记录：
+1. 
 
 
 ## 会议任务

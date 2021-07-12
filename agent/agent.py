@@ -39,7 +39,7 @@ class Agents:
             self.policy = Reinforce(args)
         elif   args.alg == 'task_decomposition':
             from policy.task_decomposition import TD
-            self.policy = TD
+            self.policy = TD(args)
         else:
             raise Exception("No such algorithm")
         self.args = args
@@ -72,7 +72,10 @@ class Agents:
                 maven_z = maven_z.cuda()
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state, maven_z)
         else:
-            q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
+            q_value, self.policy.eval_hidden[:, agent_num, :], _ = self.policy.eval_rnn(inputs, hidden_state)
+
+        # if self.args.alg == 'task_decomposition':
+        #     q_value, i = self.policy.task_selector(q_value)
 
         # choose action from q value
         if self.args.alg == 'coma' or self.args.alg == 'central_v' or self.args.alg == 'reinforce':
