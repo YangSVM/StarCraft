@@ -34,24 +34,32 @@
 5. runner中，采用的是Agent, RolloutWorker, ReplayBuffer最简单的三个类。
 6. runner.run 每次采集一个episode时，记录游戏长度(steps)，(注意返回的episode数组还是固定长度的，但是填充了0)，并将steps累加成time_step，当time_step>5000时，evaluate一次，保存并更新图片，胜率等结果。如果time_step> 2百万，则停止。
 7. 上述 runner.run 被运行8次重复试验。
-8. 学习流程：采集数据，存入buffer，从buffer中sample样本，用样本进行train。
-   - 采集数据：从环境中采集得到episodes。list.每个元素是一个dict，dict中每个key维度均为：(1, episode_len, n_agents, 具体维度).episode_batch是一个dict，每个key都是(n_episode, episode_len, n_agents, 具体维度)
-   - 存入buffer并且从buffer中sample出mini_batch进行训练。dict中每个key都是(n_episode, episode_len, n_agents, 具体维度)
-   - 进入train时，首先会将mini_batch中的episode_len进行裁剪。因为可能存在一个batch中都是很快就terminated的场景。裁剪后为batch。dict中每个value都是(n_episode, max_episode_len, n_agents, 具体维度)。max_episode_len为所有episode中最长的episode.
-   - 训练时，每经过args.save_cycle次训练，保存一次模型.
-   - 每次进行训练时:
-     - init_hidden。将输入轨迹的rnn的 hidden_state 设置为0。
-     - get_q_valus：计算q函数。
-       - get_input：截取当前trasition_idx时刻(固定episode中某个时刻)的输入值(obs, action_onehot, agent_onehot)，self.eval_hidden 和 self.target_hidden 保存当前时刻的hidden_states。输出q_eval, self.eval_hidden,是(n_agent, n_actions).
-       - 将input和hidden_states输入到rnn中。得到q_evals和q_targets。维度均为(n_episode, max_episode_len, n_agents, 动作空间维度)
-       - 因为IGM，且智能体仅采取了一个动作。q_evals 和 q_targets维度缩减成(n_episode, max_episode_len, n_agents)
-       - 送入eval_qmix_net 和 target_qmix_net中，计算全局的Q值。计算TD error，并且反向传播。
-   - QMIX网络。
-     - 输入：q_evals. 维度(n_episode, max_episode_len, n_agents)；状态s，维度(n_episode, max_episode_len, 状态空间维度)
-     - 输出：Q_total。维度(n_episode, max_episode_len, 1)
-     - 网络设计：首先f(states)生成w1,b1,w2,b2，所以需要相应的4个超参数网络。超参数网络均为nn.Linear，hyper_w1的网络为输入(n, n_states), 输出(n, n_agents * qmix_hidden_dim), 
-     - 使用torch.bmm乘法。为torch.mm的3D版本。torch.mm只能做2D矩阵的乘法。torch.bmm相当于输入维度都在第一维增加了batch维度，batch维度大小必须相同。
-9. 疑问：为什么reuse_network(所有智能体共享同样的参数)时，需要输入ID作为trajectory？
+
+### 学习流程：采集数据，存入buffer，从buffer中sample样本，用样本进行train。
+- 采集数据：`rollout.py`中`generate_episode`
+  - Returns:
+    - `episode_batch`  dict。每个key：u,s,r,u_next... 维度：*(n_episode, episode_len, n_agents, 具体维度) *，如果变量与n_agent无关，维度缩减为(n_episode, max_episode_len,  具体维度).
+- 存入buffer并且从buffer中sample出mini_batch进行训练。变量维度不变
+- 进入train时，首先会将mini_batch中的episode_len进行裁剪。因为可能存在一个batch中都是很快就terminated的场景。裁剪后为batch。dict中每个 **value** 都是 (n_episode, max_episode_len, n_agents, 具体维度)。max_episode_len为所有episode中最长的episode.
+- 训练时，每经过args.save_cycle次训练，保存一次模型.
+- 每次进行训练时policy 对应中的`learn`函数:
+  - 输入batch.变量维度与上述相同*(n_episode, max_episode_len, n_agents, 具体维度)*，如果变量与n_agent无关，维度缩减为(n_episode, max_episode_len,  具体维度). 从np array转成torch。
+  - 一些变量的含义：
+    - terminated: (n_episode, max_episode_len, 1). 表示i轨迹在j时刻是否已经停止游戏
+    - padded: (n_episode, max_episode_len, 1).表示i轨迹在j时刻是否是填充的0数据
+    - o, u, s,r,o_next,s_next, avail_u,avail_u_next, u_onehot 均为字母相应意义。其中u是整数编码，其余的avail_u等与u相关的量都是独热编码。
+  - init_hidden。将输入轨迹的rnn的 hidden_state 设置为0。
+  - get_q_valus：计算q函数。
+    - get_input：截取当前trasition_idx时刻(固定episode中某个时刻)的输入值(obs, action_onehot, agent_onehot)，self.eval_hidden 和 self.target_hidden 保存当前时刻的hidden_states。输出q_eval, self.eval_hidden,是(n_agent, n_actions).
+    - 将input和hidden_states输入到rnn中。得到q_evals和q_targets。维度均为(n_episode, max_episode_len, n_agents, 动作空间维度)
+    - 因为IGM，且智能体仅采取了一个动作。q_evals 和 q_targets维度缩减成(n_episode, max_episode_len, n_agents)
+    - 送入eval_qmix_net 和 target_qmix_net中，计算全局的Q值。计算TD error，并且反向传播。
+- QMIX网络。
+  - 输入：q_evals. 维度(n_episode, max_episode_len, n_agents)；状态s，维度(n_episode, max_episode_len, 状态空间维度)
+  - 输出：Q_total。维度(n_episode, max_episode_len, 1)
+  - 网络设计：首先f(states)生成w1,b1,w2,b2，所以需要相应的4个超参数网络。超参数网络均为nn.Linear，hyper_w1的网络为输入(n, n_states), 输出(n, n_agents * qmix_hidden_dim), 
+  - 使用torch.bmm乘法。为torch.mm的3D版本。torch.mm只能做2D矩阵的乘法。torch.bmm相当于输入维度都在第一维增加了batch维度，batch维度大小必须相同。
+1.  疑问：为什么reuse_network(所有智能体共享同样的参数)时，需要输入ID作为trajectory？
 
 ## 环境解析 - SMAC
 1. SMAC: 牛津oxwhirl组。https://github.com/oxwhirl/smac
@@ -85,29 +93,41 @@
      - agent unit features (health, shield, unit_type)
    4. obs可以通过函数           functions ``get_obs_move_feats_size()``, ``get_obs_enemy_feats_size()``, ``get_obs_ally_feats_size()`` and``get_obs_own_feats_size()``.获取各个维度的大小。
    5. 环境各异：The size of the observation vector may vary, depending on the environment configuration and type of units present in the map. For instance, non-Protoss units will not have shields, movement features may or may not include terrain height and pathing grid, unit_type is not included if there is only one type of unit in the map etc.). 不是神族没有护盾，平地没有pathing grid或者高度特征，场景只有一个种族时，没有type of unit。
-   6. `get_obs_agent` 函数代码阅读
+   6. **Observation** `get_obs_agent` 函数代码阅读
       - 首先根据函数获得各个观测的维度，并创建0数组
       - 如果该智能体血条为0，直接返回全0的数组
       - Movement features: 前4个特征代表是否能够向4个方向运动，后面根据场景，可能有get_surrounding_pathing 和 get_surrounding_height信息
       - Enemy features: 敌方个数*特征维度。敌方智能体必须在sight range并且生命值大于0.各维度意思：(available_to_attack, distance, relative_x, relative_y, health, shield, unit_type)，前面5项一般有。
       - Ally features: (我方总个数-1)*特征维度。我方智能体必须在sight range并且生命值大于0.各维度意思：(visible, distance, relative_x, relative_y, health, shield, unit_type, last_action)，前面5项一般有。
       - Own features: 一维特征：(health, sheild, unit)起码有第一个。
-   7. reward奖励: 当非稀疏时，调用 `reward_battle` 函数计算reward奖励
+   7. **Reward** 奖励 `reward_battle`: 当非稀疏时，调用 `reward_battle` 函数计算reward奖励
       - 函数说明。一般仅考虑敌方，返回累加和：护盾和血条的减少量，以及每个敌方死亡奖励；如果flag reward_only_positive为True，进一步考虑我方智能体的负的reward，内容与敌方相同。
-   8. state：`get_state` 函数阅读。以下维度按顺序
+   8. **State**：`get_state` 函数阅读。以下维度按顺序
       - ally_state: 智能体数目*特征维度。我方智能体状态。(health, energy/cd, x, y) ,optional:(shield, type)
       - enemy_state：智能体数目*特征维度。敌方智能体状态。(health, x, y), optional:(shield, type)
       - (optional)state_last_action: 上一时刻动作
       - (optional)state_timestep_number：时间进度。
       将以上矩阵或向量flatten再concate起来.
-9. QMIX源码阅读：
-   - 6688
+9. **Action**： `get_avail_agent_actions`: 长度为n_agent的list，每个元素由以下组成
+    - [0] isDead : no-op。如果死亡，为1，只能选择这个动作。
+    - [1] stop : 是否停止
+    - [2:5] move ： 北南东西
+    - attack或者医疗兵的技能
+10. QMIX源码阅读：
+
+## 代码实现：
+1. 如何使用2个loss更新不同的参数：https://discuss.pytorch.org/t/how-to-have-two-optimizers-such-that-one-optimizer-trains-the-whole-parameter-and-the-other-trains-partial-of-the-parameter/62966
+2. 
 
 
-## 代码变量记录：
-1. 
-
+## 调试日志
+1. 一开始采样的时候，任务的score大部分为0，且总是选择任务0，其他任务的score为0的概率大很多。
+2. winning rate始终为0...大问题
+3. pytorch如果需要反复经过同一个变量进行反向传播，并且需要保留中间变量的梯度时，需要 retain_graph=True
+4. SMAC 3m中有奇怪的事情，有时候攻击敌方，敌方血条没有减少: 的确是环境设置的问题，可能是技能CD还是游戏的特性？检查过所有reward加和仍然是调用环境中的reward中的值，证明reward确实为0
+5. QMIX在台式机上大概15分钟(65k time_steps)就能够在3m上得到较高的胜率.(最大80，平均50)
+6. pytorch 和 numpy 的切片索引相同，如果a.shape (2,3), a[0,:].shape为(3,)。即单独索引减小一个维度。
 
 ## 会议任务
-8. 下一步方向：找reward和states。reward：能否分开。可以分开，所有的观测都能够拿到
-9. matrix game：验证方法。最好考虑dependency。
+8. matrix game：验证方法。最好考虑dependency。matrix game代码验证
+9. 为什么qplex方法存在局限性，充要的条件退化到matrix game是什么

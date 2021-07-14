@@ -32,19 +32,19 @@ class Runner:
         while time_steps < self.args.n_steps:
             print('Run {}, time_steps {}'.format(num, time_steps))
             if time_steps // self.args.evaluate_cycle > evaluate_steps:
+                # evaluate_cycle： 5000
                 win_rate, episode_reward = self.evaluate()
-                # print('win_rate is ', win_rate)
+                print('win_rate is ', win_rate)
                 self.win_rates.append(win_rate)
                 self.episode_rewards.append(episode_reward)
                 self.plt(num)
                 evaluate_steps += 1
             episodes = []
-            # 收集self.args.n_episodes个episodes
+            # 收集self.args.n_episodes(1)个episodes
             for episode_idx in range(self.args.n_episodes):
                 episode, _, _, steps = self.rolloutWorker.generate_episode(episode_idx)
                 episodes.append(episode)
-                time_steps += steps
-                # print(_)
+                time_steps += steps                
             # episode的每一项都是一个(1, episode_len, n_agents, 具体维度)四维数组.但如s等与agent无关的，仅有三维(1, episode_len,  具体维度)
             # 下面要把所有episode的的key拼在一起
             episode_batch = episodes[0]

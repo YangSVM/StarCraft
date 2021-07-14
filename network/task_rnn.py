@@ -15,6 +15,15 @@ class TaskRNN(nn.Module):
         self.fc2 = nn.Linear(args.rnn_hidden_dim, (args.n_actions +1) * args.n_tasks)
 
     def forward(self, obs, hidden_state):
+        '''
+        Params:
+            obs: (n_episode,  n_obs+...). or (n_episode*n_agent, n_obs+...)
+            hidden_state: (n_episode, n_agent, rnn_hidden_dim)
+        Return:
+            q: (n_episode,  n_actions), or (n_episode*n_agent,  n_actions)
+            i_task: (n_episode) or (n_episode*n_agent)
+        '''
+
         x = f.relu(self.fc1(obs))
         h_in = hidden_state.reshape(-1, self.args.rnn_hidden_dim)
         h = self.rnn(x, h_in)
@@ -28,7 +37,7 @@ class TaskRNN(nn.Module):
         q_shape.append(-1)
         q_shape[-2] = self.n_tasks
 
-        # 选择对应的动作：
+        # 选择对应的动作：q_shape: (n_episode, n_tasks, n_actions)
         q = q.view(q_shape)
         q_shape = q.shape
         # 1. 取最后一个维度第一个数作为task selector, 选择最擅长的task
@@ -38,9 +47,11 @@ class TaskRNN(nn.Module):
         i_task_shape = list(q_shape)
         i_task_shape[-2] =  1
         i_task = i_task.expand(i_task_shape)
-        q = torch.gather(q, dim=-1, index=i_task)
+        q = torch.gather(q, dim=-2, index=i_task)
         q = (q[...,0].unsqueeze(-1) *q[...,1:]).squeeze(-2)
         i_task = i_task.squeeze(1)
         i_task = i_task[..., 0]
+
+        
         return q, h, i_task
 

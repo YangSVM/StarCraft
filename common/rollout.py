@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.lib.function_base import iterable
 import torch
 from torch.distributions import one_hot_categorical
 import time
@@ -75,10 +76,14 @@ class RolloutWorker:
             u.append(np.reshape(actions, [self.n_agents, 1]))
             u_onehot.append(actions_onehot)
             avail_u.append(avail_actions)
-            r.append([reward])
+            r.append(np.array(reward))
             terminate.append([terminated])
             padded.append([0.])
-            episode_reward += reward
+            if isinstance(reward, list):
+                # 如果返回多个reward
+                episode_reward += sum(reward)
+            else:
+                episode_reward += reward
             step += 1
             if self.args.epsilon_anneal_scale == 'step':
                 epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
@@ -100,12 +105,15 @@ class RolloutWorker:
         avail_u_next = avail_u[1:]
         avail_u = avail_u[:-1]
 
-        # if step < self.episode_limit，padding
+        # if step < self.episode_limit, padding
         for i in range(step, self.episode_limit):
             o.append(np.zeros((self.n_agents, self.obs_shape)))
             u.append(np.zeros([self.n_agents, 1]))
             s.append(np.zeros(self.state_shape))
-            r.append([0.])
+            if self.args.alg.find('task_decompostion'):
+                r.append(np.zeros(self.args.n_tasks))
+            else:
+                r.append([0.])
             o_next.append(np.zeros((self.n_agents, self.obs_shape)))
             s_next.append(np.zeros(self.state_shape))
             u_onehot.append(np.zeros((self.n_agents, self.n_actions)))
@@ -126,7 +134,7 @@ class RolloutWorker:
                        padded=padded.copy(),
                        terminated=terminate.copy()
                        )
-        # add episode dim
+        # add episode dim: (1, n_agents, n_feature)
         for key in episode.keys():
             episode[key] = np.array([episode[key]])
         if not evaluate:

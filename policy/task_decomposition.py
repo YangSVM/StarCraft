@@ -1,7 +1,9 @@
+from policy.qtran_alt import QtranAlt
 import torch
 import os
 from network.task_rnn import TaskRNN
 from network.task_decomposition import TaskDecomposition
+import torch.nn.functional as F
 
 class TD:
     def __init__(self, args):
@@ -49,6 +51,7 @@ class TD:
         if args.optimizer == "RMS":
             self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=args.lr)
 
+
         # 执行过程中，要为每个agent都维护一个eval_hidden
         # 学习过程中，要为每个episode的每个agent都维护一个eval_hidden、target_hidden
         self.eval_hidden = None
@@ -88,7 +91,7 @@ class TD:
 
 
 
-        # 取每个agent动作对应的Q值，并且把最后不需要的一维去掉，因为最后一维只有一个值了
+        # 取每个agent动作对应的Q值，并且把最后不需要的一维去掉，因为仅采取一个动作。(n_episode, episode_len, n_agent)
         q_evals = torch.gather(q_evals, dim=3, index=u).squeeze(3)
 
 
@@ -96,16 +99,35 @@ class TD:
         q_targets[avail_u_next == 0.0] = - 9999999
         q_targets = q_targets.max(dim=3)[0]
 
-        q_total_eval = self.eval_task_net(q_evals, s, i_task)
-        q_total_target = self.target_qmix_net(q_targets, s_next, i_task_target)
 
-        targets = r + self.args.gamma * q_total_target * (1 - terminated)
+        hyper_networks, q_values_list = self.eval_task_net(q_evals, s, i_task)
+        hyper_networks_target, q_targets_list  = self.target_qmix_net(q_targets, s_next, i_task_target)
+
+        q_total_eval = sum(self.calc_q_total(q_values_list, hyper_networks))
+        q_total_target = sum(self.calc_q_total(q_targets_list, hyper_networks_target))
+
+
+        # q_total_target = self.target_qmix_net(q_targets, s_next, i_task_target)
+
+        targets = r.sum(dim=-1).unsqueeze(-1) + self.args.gamma * q_total_target * (1 - terminated)
 
         td_error = (q_total_eval - targets.detach())
         masked_td_error = mask * td_error  # 抹掉填充的经验的td_error
 
         # 不能直接用mean，因为还有许多经验是没用的，所以要求和再比真实的经验数，才是真正的均值
-        loss = (masked_td_error ** 2).sum() / mask.sum()
+        loss1 = (masked_td_error ** 2).sum() / mask.sum()
+
+        q_tasks = self.calc_q_total(q_values_list, hyper_networks, is_grad4rnn=False)
+        q_tasks_targets = self.calc_q_total(q_targets_list, hyper_networks_target, is_grad4rnn=False)
+        q_tasks = torch.cat(q_tasks, dim=-1)
+        q_tasks_targets = torch.cat(q_tasks_targets, dim=-1)
+        q_tasks_targets = r + self.args.gamma * q_tasks_targets * (1 - terminated)
+        
+        td_task_error = (q_tasks - q_tasks_targets.detach())
+        masked_td_task_error = mask * td_task_error
+        loss2 = (masked_td_task_error ** 2).sum() / mask.sum()
+
+        loss = loss1+loss2
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.eval_parameters, self.args.grad_norm_clip)
@@ -114,6 +136,30 @@ class TD:
         if train_step > 0 and train_step % self.args.target_update_cycle == 0:
             self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
             self.target_qmix_net.load_state_dict(self.eval_task_net.state_dict())
+
+
+    def calc_q_total(self, q_list, hyper_networks, is_grad4rnn=True):
+        Qi_list = []
+        # 把计算过程搬到这里
+        for i in range(self.n_tasks):
+            qi = q_list[i]
+            w1, b1, w2, b2  = hyper_networks[i]
+
+            # 传入的q_values是三维的，shape为(episode_num, max_episode_len， n_agents)
+            episode_num = qi.size(0)
+            qi = qi.view(-1, 1, self.args.n_agents)  # (episode_num * max_episode_len, 1, n_agents) = (1920,1,5)
+            if is_grad4rnn:
+                hidden = F.elu(torch.bmm(qi, w1.detach()) + b1.detach())  # (1920, 1, 32)
+                Qi = torch.bmm(hidden, w2.detach()) + b2.detach()  # (1920, 1, 1)
+
+            else:
+                hidden = F.elu(torch.bmm(qi.detach(), w1) + b1)  # (1920, 1, 32)
+                Qi = torch.bmm(hidden, w2) + b2  # (1920, 1, 1)
+
+            Qi = Qi.view(episode_num, -1, 1)  # (32, 60, 1)
+            Qi_list.append(Qi)
+        return Qi_list
+
 
     def task_selector(self, q):
         '''选择对应的task...没有用到。写在task_rnn中
@@ -127,9 +173,14 @@ class TD:
         q = task_score * torch.gather(q, dim=3, index=i_task.unsqueeze(3))
 
     def _get_inputs(self, batch, transition_idx):
+        '''
+        Return:
+            inputs: (n_episode*n_agent, n_obs+n_actions+n_agent)
+        '''
         # 取出所有episode上该transition_idx的经验，u_onehot要取出所有，因为要用到上一条
         obs, obs_next, u_onehot = batch['o'][:, transition_idx], \
                                   batch['o_next'][:, transition_idx], batch['u_onehot'][:]
+        # obs: (n_episode, n_agent, n_obs)
         episode_num = obs.shape[0]
         inputs, inputs_next = [], []
         inputs.append(obs)
@@ -137,9 +188,10 @@ class TD:
         # 给obs添加上一个动作、agent编号
 
         if self.args.last_action:
+            # inputs append (n_episode, n_agent, n_action) tensor
             if transition_idx == 0:  # 如果是第一条经验，就让前一个动作为0向量
                 inputs.append(torch.zeros_like(u_onehot[:, transition_idx]))
-            else:
+            else:                
                 inputs.append(u_onehot[:, transition_idx - 1])
             inputs_next.append(u_onehot[:, transition_idx])
         if self.args.reuse_network:
@@ -154,17 +206,28 @@ class TD:
         inputs_next = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs_next], dim=1)
         return inputs, inputs_next
 
-    def get_q_values(self, batch, max_episode_len):
+    def get_q_values(self, batch, max_episode_len, require_grad=True):
         episode_num = batch['o'].shape[0]
         q_evals, q_targets = [], []
         i_tasks, i_task_targets= [], []
         for transition_idx in range(max_episode_len):
+            # inputs, inputs_next：(episode_num * n_agents, n_obs+n_actions+n_agent).表示
             inputs, inputs_next = self._get_inputs(batch, transition_idx)  # 给obs加last_action、agent_id
             if self.args.cuda:
                 inputs = inputs.cuda()
                 inputs_next = inputs_next.cuda()
                 self.eval_hidden = self.eval_hidden.cuda()
                 self.target_hidden = self.target_hidden.cuda()
+
+            # 不更新
+            if not require_grad:
+                for p in  self.eval_rnn.parameters():
+                    p.requires_grad = False
+                for p in  self.target_rnn.parameters():
+                    p.requires_grad = False
+
+            # 获得 相应任务的最优动作的q值，rnn的隐藏层，以及选了哪个任务
+            # 
             q_eval, self.eval_hidden, i_task = self.eval_rnn(inputs, self.eval_hidden)  # inputs维度为(3,42)，得到的q_eval维度为(40,n_actions)
             q_target, self.target_hidden, i_task_target= self.target_rnn(inputs_next, self.target_hidden)
 

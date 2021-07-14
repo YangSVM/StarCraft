@@ -45,6 +45,11 @@ class Agents:
         self.args = args
 
     def choose_action(self, obs, last_action, agent_num, avail_actions, epsilon, maven_z=None, evaluate=False):
+        ''' 选择argmax的动作，考虑epsilon探索
+        Params:
+            obs: np array. (obs_size)
+            agent_num: 0~n_agent，表示第几个agent
+        '''
         inputs = obs.copy()
         avail_actions_ind = np.nonzero(avail_actions)[0]  # index of actions which can be choose
 
@@ -56,7 +61,7 @@ class Agents:
             inputs = np.hstack((inputs, last_action))
         if self.args.reuse_network:
             inputs = np.hstack((inputs, agent_id))
-        hidden_state = self.policy.eval_hidden[:, agent_num, :]
+        hidden_state = self.policy.eval_hidden[:, agent_num, :]     # shape: (episode_num, self.args.rnn_hidden_dim)
 
         # transform the shape of inputs from (42,) to (1,42)
         inputs = torch.tensor(inputs, dtype=torch.float32).unsqueeze(0)
@@ -71,11 +76,11 @@ class Agents:
             if self.args.cuda:
                 maven_z = maven_z.cuda()
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state, maven_z)
-        else:
+        elif self.args.alg == 'task_decomposition':
             q_value, self.policy.eval_hidden[:, agent_num, :], _ = self.policy.eval_rnn(inputs, hidden_state)
+        else:
+            q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
 
-        # if self.args.alg == 'task_decomposition':
-        #     q_value, i = self.policy.task_selector(q_value)
 
         # choose action from q value
         if self.args.alg == 'coma' or self.args.alg == 'central_v' or self.args.alg == 'reinforce':

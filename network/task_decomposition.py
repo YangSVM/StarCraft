@@ -46,16 +46,16 @@ class TaskDecomposition(nn.Module):
     def forward(self, q_values_all, states, i_task):  # states的shape为(episode_num, max_episode_len， state_shape)
         # i_task shape (n_episode, max_episode_len, n_agent)
         # q_values_all shape (n_episode, max_episode_len, n_agent)
-        q_total_sum = 0
+
         q_values_list = self.q_value_dec(q_values_all, i_task)
+        hyper_networks = []
         # 需要根据i_task，输送到不同的网络
         for i in range(self.n_tasks):
             # 第i个任务的网络
             hyper_w1, hyper_b1, hyper_w2, hyper_b2 = self.hypers_w1[i], self.hypers_b1[i], self.hypers_w2[i], self.hypers_b2[i]
-            q_values = q_values_list[i]
+
             # 传入的q_values是三维的，shape为(episode_num, max_episode_len， n_agents)
-            episode_num = q_values.size(0)
-            q_values = q_values.view(-1, 1, self.args.n_agents)  # (episode_num * max_episode_len, 1, n_agents) = (1920,1,5)
+
             states = states.reshape(-1, self.args.state_shape)  # (episode_num * max_episode_len, state_shape)
 
             w1 = torch.abs(hyper_w1(states))  # (1920, 160)
@@ -64,7 +64,6 @@ class TaskDecomposition(nn.Module):
             w1 = w1.view(-1, self.args.n_agents, self.args.qmix_hidden_dim)  # (1920, 5, 32)
             b1 = b1.view(-1, 1, self.args.qmix_hidden_dim)  # (1920, 1, 32)
 
-            hidden = F.elu(torch.bmm(q_values, w1) + b1)  # (1920, 1, 32)
 
             w2 = torch.abs(hyper_w2(states))  # (1920, 32)
             b2 = hyper_b2(states)  # (1920, 1)
@@ -72,10 +71,9 @@ class TaskDecomposition(nn.Module):
             w2 = w2.view(-1, self.args.qmix_hidden_dim, 1)  # (1920, 32, 1)
             b2 = b2.view(-1, 1, 1)  # (1920, 1， 1)
 
-            q_total = torch.bmm(hidden, w2) + b2  # (1920, 1, 1)
-            q_total = q_total.view(episode_num, -1, 1)  # (32, 60, 1)
-            q_total_sum += q_total
-        return q_total_sum
+
+            hyper_networks.append([w1,b1,w2,b2])
+        return hyper_networks, q_values_list
 
     
     def q_value_dec(self, q_values, i_tasks):

@@ -32,6 +32,7 @@ def get_common_args():
     parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
     parser.add_argument('--evaluate', type=bool, default=False, help='whether to evaluate the model')
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
+    parser.add_argument('--n_tasks', type=int, default=1, help='how many task in td')
     args = parser.parse_args()
     return args
 
