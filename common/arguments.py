@@ -168,6 +168,22 @@ def get_task_decomposition_args(args, env):
     enemy_feats_size = env.get_obs_enemy_feats_size()
 
     args.n_tasks = enemy_feats_size[0]
+        # network
+    args.rnn_hidden_dim = 64 * 3
+    args.qmix_hidden_dim = 32 
+    args.two_hyper_layers = False
+    args.hyper_hidden_dim = 16
+    args.qtran_hidden_dim = 64
+    args.lr = 5e-4
+
+    # epsilon greedy
+    args.epsilon = 1
+    args.min_epsilon = 0.05
+    anneal_steps = 50000
+    args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
+    args.epsilon_anneal_scale = 'step'
+    args.evaluate_epoch = 1
+
     return args
 
 # arguments of coma+commnet

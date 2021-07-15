@@ -41,6 +41,8 @@ class TaskDecomposition(nn.Module):
             self.hypers_w2.append(hyper_w2)
             self.hypers_b1.append(hyper_b1)
             self.hypers_b2.append(hyper_b2)
+        self.hypers_w1, self.hypers_w2, self.hypers_b1, self.hypers_b2 = \
+            nn.ModuleList(self.hypers_w1),nn.ModuleList(self.hypers_w2),nn.ModuleList(self.hypers_b1),nn.ModuleList(self.hypers_b2)
 
 
     def forward(self, q_values_all, states, i_task):  # states的shape为(episode_num, max_episode_len， state_shape)
@@ -49,7 +51,7 @@ class TaskDecomposition(nn.Module):
 
         q_values_list = self.q_value_dec(q_values_all, i_task)
         hyper_networks = []
-        # 需要根据i_task，输送到不同的网络
+        # 需要根据i_task，输送到不同的网络 
         for i in range(self.n_tasks):
             # 第i个任务的网络
             hyper_w1, hyper_b1, hyper_w2, hyper_b2 = self.hypers_w1[i], self.hypers_b1[i], self.hypers_w2[i], self.hypers_b2[i]
@@ -83,6 +85,8 @@ class TaskDecomposition(nn.Module):
 
         for i in range(self.n_tasks):
             q = torch.zeros(q_values.shape)
+            if q_values.shape != i_tasks.shape:
+                print('error. ')
             mask = i_tasks==i
             q[mask] = q_values[mask]
             q_list.append(q)

@@ -5,7 +5,8 @@
     ],
     "python.analysis.extraPaths": [
         "/home/tiecun/catkin_ws/devel/lib/python2.7/dist-packages",
-        "/opt/ros/melodic/lib/python2.7/dist-packages"
+        "/opt/ros/melodic/lib/python2.7/dist-packages",
+        "/home/tiecun/codes/MARL/simulation/smac"
     ],
     "python.pythonPath": "/home/tiecun/anaconda3/envs/marl/bin/python"
 }

@@ -23,13 +23,13 @@ class TD:
         self.eval_rnn = TaskRNN(input_shape, args)  # 每个agent选动作的网络
         self.target_rnn = TaskRNN(input_shape, args)
         self.eval_task_net = TaskDecomposition(args)  # 把agentsQ值加起来的网络
-        self.target_qmix_net = TaskDecomposition(args)
+        self.target_task_net = TaskDecomposition(args)
         self.args = args
         if self.args.cuda:
             self.eval_rnn.cuda()
             self.target_rnn.cuda()
             self.eval_task_net.cuda()
-            self.target_qmix_net.cuda()
+            self.target_task_net.cuda()
         self.model_dir = args.model_dir + '/' + args.alg + '/' + args.map
         # 如果存在模型则加载模型
         if self.args.load_model:
@@ -45,7 +45,7 @@ class TD:
 
         # 让target_net和eval_net的网络参数相同
         self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
-        self.target_qmix_net.load_state_dict(self.eval_task_net.state_dict())
+        self.target_task_net.load_state_dict(self.eval_task_net.state_dict())
 
         self.eval_parameters = list(self.eval_task_net.parameters()) + list(self.eval_rnn.parameters())
         if args.optimizer == "RMS":
@@ -101,7 +101,7 @@ class TD:
 
 
         hyper_networks, q_values_list = self.eval_task_net(q_evals, s, i_task)
-        hyper_networks_target, q_targets_list  = self.target_qmix_net(q_targets, s_next, i_task_target)
+        hyper_networks_target, q_targets_list  = self.target_task_net(q_targets, s_next, i_task_target)
 
         q_total_eval = sum(self.calc_q_total(q_values_list, hyper_networks))
         q_total_target = sum(self.calc_q_total(q_targets_list, hyper_networks_target))
@@ -127,15 +127,19 @@ class TD:
         masked_td_task_error = mask * td_task_error
         loss2 = (masked_td_task_error ** 2).sum() / mask.sum()
 
-        loss = loss1+loss2
+        # loss = loss1+loss2
         self.optimizer.zero_grad()
-        loss.backward()
+        loss1.backward()
+        # for parm in self.eval_task_net.parameters():
+        #     x =parm.grad.data.cpu().numpy()
+        loss2.backward()
+        # loss.backward()
         torch.nn.utils.clip_grad_norm_(self.eval_parameters, self.args.grad_norm_clip)
         self.optimizer.step()
 
         if train_step > 0 and train_step % self.args.target_update_cycle == 0:
             self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
-            self.target_qmix_net.load_state_dict(self.eval_task_net.state_dict())
+            self.target_task_net.load_state_dict(self.eval_task_net.state_dict())
 
 
     def calc_q_total(self, q_list, hyper_networks, is_grad4rnn=True):

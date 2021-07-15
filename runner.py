@@ -35,6 +35,7 @@ class Runner:
                 # evaluate_cycle： 5000
                 win_rate, episode_reward = self.evaluate()
                 print('win_rate is ', win_rate)
+                print('episode reward: ', episode_reward)
                 self.win_rates.append(win_rate)
                 self.episode_rewards.append(episode_reward)
                 self.plt(num)
@@ -63,6 +64,7 @@ class Runner:
                     train_steps += 1
         win_rate, episode_reward = self.evaluate()
         print('win_rate is ', win_rate)
+        print('reward is ', episode_reward)
         self.win_rates.append(win_rate)
         self.episode_rewards.append(episode_reward)
         self.plt(num)

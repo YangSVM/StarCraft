@@ -201,6 +201,8 @@ class CommRolloutWorker:
                 last_action[agent_id] = action_onehot
 
             reward, terminated, info = self.env.step(actions)
+            if not isinstance(reward, list):
+                print('error')
             win_tag = True if terminated and 'battle_won' in info and info['battle_won'] else False
             o.append(obs)
             s.append(state)
