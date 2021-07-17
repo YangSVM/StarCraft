@@ -29,7 +29,7 @@ class TaskRNN(nn.Module):
         h = self.rnn(x, h_in)
         q = self.fc2(h)
         # 保证所有的q都是正数
-        q = f.sigmoid(q)
+        q = torch.sigmoid(q)
 
         '''选择对应的task
         '''

@@ -14,6 +14,7 @@
             "args":[
                 "--alg=task_decomposition",
                 "--map=3m",
+                "--n_tasks=3",
             ],
             "env": {
                 "PYTHONPATH": "/home/tiecun/codes/MARL/simulation/smac" 

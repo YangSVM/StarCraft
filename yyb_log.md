@@ -7,6 +7,36 @@
    ```bash
    pip install gym==0.10.5
    ```
+3. install from scratch
+   ```bash
+   conda create -n marl python=3.6
+   pip install pytorch
+   <!-- scp -P 端口号 本地文件 root@ip:远程文件夹 -->
+   scp -P 11730 SC2.4.6.2.69232.zip root@wx.blockelite.cn:/root/marl/StarCraftII 
+   unzip
+   git clone https://github.com/YangSVM/StarCraft.git
+   git clone https://github.com/YangSVM/smac.git
+   pip install smac/
+
+   <!-- edit .bashrc -->
+   export SC2PATH=/home/tiecun/codes/MARL/simulation/StarCraftII
+   <!-- test smac installation -->
+   python -m smac.examples.random_agents
+   ```
+
+# 服务器使用相关
+- ssh关闭后仍然使得代码保持跑。用法：
+  - ssh into the remote machine
+  - start tmux by typing tmux into the shell
+  - start the process you want inside the started tmux session
+  - leave/detach the tmux session by typing Ctrl+b and then d
+  - 重新激活： `tmux attach`
+  - 在tmux环境中时，可以重命名环境，using Ctrl+b and $. 
+  - 重新激活指定环境 `tmux attach-session -t <session-name>`
+  - 列举已有的环境 `tmux list-sessions`
+- 已有环境
+  - 小破台式机：`ssh thicv@166.111.50.91` 
+  - 借用服务器： `ssh root@wx.blockelite.cn -p 11730`
 
 # 环境学习
 ## MPE
@@ -113,7 +143,13 @@
     - [1] stop : 是否停止
     - [2:5] move ： 北南东西
     - attack或者医疗兵的技能
-10. QMIX源码阅读：
+10. `step`函数解读
+    - 输出 reward, terminated, info.
+      - terminated: bool。可能由于pysc2游戏bug或者错误的请求终止导致
+    - 首先将得到的 actions，转化为pysc2可用的动作，并向客户端进行请求 。
+    - `self.update_units()`更新所有观察，到类属性中(如self.enemies, self.agents等)。返回 `game_end_code` 如果游戏能够判定胜负或者平局，就分别为+-1或0，如果还未能判定则返回None
+    - $max_reward = n_ennemies * reward_death_value + reward_win + 所有敌人的血量和护盾值之和$, $reward_scale_rate = 20$,返回的reward计算方法： $reward = reward / max_reward * reward_scale_rate$
+    - 
 
 ## 代码实现：
 1. 如何使用2个loss更新不同的参数：https://discuss.pytorch.org/t/how-to-have-two-optimizers-such-that-one-optimizer-trains-the-whole-parameter-and-the-other-trains-partial-of-the-parameter/62966
@@ -135,3 +171,11 @@
 ## 会议任务
 8. matrix game：验证方法。最好考虑dependency。matrix game代码验证
 9. 为什么qplex方法存在局限性，充要的条件退化到matrix game是什么
+
+## 工作计划
+- qmix在3m中的reward最大是20
+  - 查看环境代码有无改写错误：错误已修改。并且加深了对环境reward的理解。
+  - 使用qmix跑跑看现在代码的情况 ：跑过了。感觉效果不错。
+- task选择的时候使用 探索: 相当于整体使用了探索。已经包含.
+- 跑更多的图 (修改环境后3m的图效果还可以)
+- 可视化回放。

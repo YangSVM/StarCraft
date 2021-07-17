@@ -4,7 +4,7 @@ from common.arguments import get_common_args, get_coma_args, get_mixer_args, get
 
 
 if __name__ == '__main__':
-    for i in range(8):
+    for i in range(1):
         args = get_common_args()
         if args.alg.find('coma') > -1:
             args = get_coma_args(args)
@@ -18,7 +18,7 @@ if __name__ == '__main__':
             args = get_commnet_args(args)
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
-        if args.alg.find('task_decomposition')>-1:
+        if args.n_tasks > 1:
             env = StarCraft2Env(map_name=args.map,
                                 step_mul=args.step_mul,
                                 difficulty=args.difficulty,
@@ -43,8 +43,10 @@ if __name__ == '__main__':
             args = get_task_decomposition_args(args, env)
 
         runner = Runner(env, args)
+        if args.multi_process_n >  -1:
+            n_run = 1 * args.multi_process_n + i
         if not args.evaluate:
-            runner.run(i)
+            runner.run(n_run)
         else:
             win_rate, _ = runner.evaluate()
             print('The win rate of {} is  {}'.format(args.alg, win_rate))

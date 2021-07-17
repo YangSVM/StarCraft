@@ -93,6 +93,9 @@ class QMIX:
         q_total_eval = self.eval_qmix_net(q_evals, s)
         q_total_target = self.target_qmix_net(q_targets, s_next)
 
+        if self.args.n_tasks>1:
+            r = r.sum(dim = -1).unsqueeze(-1)
+
         targets = r + self.args.gamma * q_total_target * (1 - terminated)
 
         td_error = (q_total_eval - targets.detach())

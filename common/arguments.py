@@ -33,6 +33,7 @@ def get_common_args():
     parser.add_argument('--evaluate', type=bool, default=False, help='whether to evaluate the model')
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
     parser.add_argument('--n_tasks', type=int, default=1, help='how many task in td')
+    parser.add_argument('--multi_process_n', type=int, default=5, help='whether to use multi process or not')
     args = parser.parse_args()
     return args
 
@@ -68,6 +69,9 @@ def get_coma_args(args):
 
 # arguments of vnd、 qmix、 qtran
 def get_mixer_args(args):
+    # multi task
+    args.n_tasks = 3
+    
     # network
     args.rnn_hidden_dim = 64
     args.qmix_hidden_dim = 32
@@ -182,7 +186,7 @@ def get_task_decomposition_args(args, env):
     anneal_steps = 50000
     args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
     args.epsilon_anneal_scale = 'step'
-    args.evaluate_epoch = 1
+    args.evaluate_epoch = 32
 
     return args
 

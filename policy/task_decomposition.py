@@ -4,6 +4,7 @@ import os
 from network.task_rnn import TaskRNN
 from network.task_decomposition import TaskDecomposition
 import torch.nn.functional as F
+import time
 
 class TD:
     def __init__(self, args):
@@ -165,17 +166,6 @@ class TD:
         return Qi_list
 
 
-    def task_selector(self, q):
-        '''选择对应的task...没有用到。写在task_rnn中
-        '''
-        episode_num, max_episode_len, _, _ = q.shape
-        # 选择对应的动作：
-        q = q.view(episode_num, max_episode_len, self.args.n_agents, self.n_tasks, -1)
-        # 1. 取最后一个维度第一个数作为task selector, 选择最擅长的task
-        task_score, i_task = q[:,:,:,:,0].max(dim = 3)
-        # 2. 取对应项相乘，计算
-        q = task_score * torch.gather(q, dim=3, index=i_task.unsqueeze(3))
-
     def _get_inputs(self, batch, transition_idx):
         '''
         Return:
@@ -223,12 +213,6 @@ class TD:
                 self.eval_hidden = self.eval_hidden.cuda()
                 self.target_hidden = self.target_hidden.cuda()
 
-            # 不更新
-            if not require_grad:
-                for p in  self.eval_rnn.parameters():
-                    p.requires_grad = False
-                for p in  self.target_rnn.parameters():
-                    p.requires_grad = False
 
             # 获得 相应任务的最优动作的q值，rnn的隐藏层，以及选了哪个任务
             # 
@@ -262,5 +246,6 @@ class TD:
         num = str(train_step // self.args.save_cycle)
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
-        torch.save(self.eval_task_net.state_dict(), self.model_dir + '/' + num + '_qmix_net_params.pkl')
-        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num + '_rnn_net_params.pkl')
+        time_n = time.time()
+        torch.save(self.eval_task_net.state_dict(), self.model_dir + '/' + num +time_n + '_td_net_params.pkl')
+        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num +time_n +  '_rnn_net_params.pkl')
