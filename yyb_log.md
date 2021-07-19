@@ -13,6 +13,7 @@
    pip install pytorch
    <!-- scp -P 端口号 本地文件 root@ip:远程文件夹 -->
    scp -P 11730 SC2.4.6.2.69232.zip root@wx.blockelite.cn:/root/marl/StarCraftII 
+   scp -P 11730 root@wx.blockelite.cn:/root/marl/StarCraft/result/task_decomposition/2s3z/plt_0.png .
    unzip
    git clone https://github.com/YangSVM/StarCraft.git
    git clone https://github.com/YangSVM/smac.git
@@ -33,10 +34,11 @@
   - 重新激活： `tmux attach`
   - 在tmux环境中时，可以重命名环境，using Ctrl+b and $. 
   - 重新激活指定环境 `tmux attach-session -t <session-name>`
-  - 列举已有的环境 `tmux list-sessions`
+  - 列举已有的环境 `tmux ls`
 - 已有环境
   - 小破台式机：`ssh thicv@166.111.50.91` 
   - 借用服务器： `ssh root@wx.blockelite.cn -p 11730`
+  - cmar服务器：`ssh intern@222.29.136.16`
 
 # 环境学习
 ## MPE
@@ -176,6 +178,6 @@
 - qmix在3m中的reward最大是20
   - 查看环境代码有无改写错误：错误已修改。并且加深了对环境reward的理解。
   - 使用qmix跑跑看现在代码的情况 ：跑过了。感觉效果不错。
-- task选择的时候使用 探索: 相当于整体使用了探索。已经包含.
-- 跑更多的图 (修改环境后3m的图效果还可以)
+- task选择的时候使用 探索: 相当于整体使用了探索。已经包含. 
+- 跑更多的图 (修改环境后3m的图效果还可以, 2s3z的效果感觉有点差，)
 - 可视化回放。

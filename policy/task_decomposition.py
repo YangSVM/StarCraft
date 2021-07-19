@@ -247,5 +247,5 @@ class TD:
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         time_n = time.time()
-        torch.save(self.eval_task_net.state_dict(), self.model_dir + '/' + num +time_n + '_td_net_params.pkl')
-        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num +time_n +  '_rnn_net_params.pkl')
+        torch.save(self.eval_task_net.state_dict(), self.model_dir + '/' + num +str(time_n) + '_td_net_params.pkl')
+        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num +str(time_n) +  '_rnn_net_params.pkl')
