@@ -1,0 +1,18 @@
+笔记本(不使用tmux)：
+14924 tiecun    20   0 5059248 861912 154336 S 270.4  5.3  26:43.04 python main.py --alg=qmix --map=3m --n_tasks=3 --multi_process_n=0             
+ 4822 tiecun    20   0 1192244 582260  44628 R  30.2  3.6   0:40.00 /home/tiecun/codes/MARL/simulation/StarCraftII/Versions/Base69232/SC2_x64 -li+
+大约 8w轮
+
+笔记本（使用tmux）
+
+ 5628 tiecun    20   0 5070356 915512 155896 R 115.6  5.6  22:21.00 python main.py --alg=qmix --map=3m --n_tasks=3 --multi_process_n=0             
+ 5870 tiecun    20   0 1195452 585428  44576 R  41.5  3.6   0:42.84 /home/tiecun/codes/MARL/simulation/StarCraftII/Versions/Base69232/SC2_x64 -li+ 
+大约7.8w轮
+
+远程台式机：
+root     11388  352  0.3 38680768 786648 pts/13 Rl  7月21 2126:30 python main.py --alg=qmix --map=3m --n_tasks=3 --multi_process_n=0
+root     11390  376  0.3 38703652 859792 pts/13 Rl  7月21 2269:40 python main.py --alg=qmix --map=3m --n_tasks=3 --multi_process_n=1
+root     11392  303  0.2 38668116 601332 pts/13 Rl  7月21 1833:32 python main.py --alg=qmix --map=3m --n_tasks=3 --multi_process_n=2
+大约7w轮
+
+
