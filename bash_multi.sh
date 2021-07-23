@@ -1,5 +1,5 @@
 #!/bin/sh
-export PYTHONPATH=$PYTHONPATH:/home/tiecun/codes/MARL/simulation/smac
+export PYTHONPATH=$PYTHONPATH:/home/ubuntu/codes/marl/smac
 
 
 for i in {7..9} ;
