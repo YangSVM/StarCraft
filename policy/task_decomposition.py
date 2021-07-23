@@ -36,7 +36,7 @@ class TD:
         if self.args.load_model:
             if os.path.exists(self.model_dir + '/rnn_net_params.pkl'):
                 path_rnn = self.model_dir + '/rnn_net_params.pkl'
-                path_qmix = self.model_dir + '/qmix_net_params.pkl'
+                path_qmix = self.model_dir + '/td_net_params.pkl'
                 map_location = 'cuda:0' if self.args.cuda else 'cpu'
                 self.eval_rnn.load_state_dict(torch.load(path_rnn, map_location=map_location))
                 self.eval_task_net.load_state_dict(torch.load(path_qmix, map_location=map_location))
@@ -57,7 +57,7 @@ class TD:
         # 学习过程中，要为每个episode的每个agent都维护一个eval_hidden、target_hidden
         self.eval_hidden = None
         self.target_hidden = None
-        print('Init alg QMIX')
+        print('Init alg Task Decomposition')
 
     def learn(self, batch, max_episode_len, train_step, epsilon=None):  # train_step表示是第几次学习，用来控制更新target_net网络的参数
         '''

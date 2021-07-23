@@ -28,7 +28,7 @@
 # 服务器使用相关
 - ssh关闭后仍然使得代码保持跑。用法：
   - ssh into the remote machine
-  - start tmux by typing tmux into the shell
+  - start tmux by typing `tmux` into the shell
   - start the process you want inside the started tmux session
   - leave/detach the tmux session by typing Ctrl+b and then d
   - 重新激活： `tmux attach`
@@ -39,6 +39,7 @@
   - 小破台式机：`ssh thicv@166.111.50.91` 
   - 借用服务器： `ssh root@wx.blockelite.cn -p 11730`
   - cmar服务器：`ssh intern@222.29.136.16`
+  - 学武服务器： `ssh ubuntu@166.111.50.164`
 
 # 环境学习
 ## MPE
