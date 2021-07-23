@@ -12,9 +12,10 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args":[
-                "--alg=task_decomposition",
-                "--map=2s3z",
-                "--n_tasks=5",
+                "--alg=qmix",
+                "--map=3m",
+                "--task_dec_type=n_enemy",
+                "--multi_process_n=10",
             ],
             "env": {
                 "PYTHONPATH": "/home/tiecun/codes/MARL/simulation/smac" 

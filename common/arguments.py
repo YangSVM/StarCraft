@@ -33,6 +33,7 @@ def get_common_args():
     parser.add_argument('--evaluate', type=bool, default=False, help='whether to evaluate the model')
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
     parser.add_argument('--n_tasks', type=int, default=1, help='how many task in td')
+    parser.add_argument('--task_dec_type', type=str, default='', help='which type would you want.')
     parser.add_argument('--multi_process_n', type=int, default=5, help='whether to use multi process or not')
     args = parser.parse_args()
     return args
@@ -69,9 +70,7 @@ def get_coma_args(args):
 
 # arguments of vnd、 qmix、 qtran
 def get_mixer_args(args):
-    # multi task
-    # args.n_tasks = 3
-    
+   
     # network
     args.rnn_hidden_dim = 64
     args.qmix_hidden_dim = 32
@@ -168,11 +167,6 @@ def get_reinforce_args(args):
 
 def get_task_decomposition_args(args, env):
     # network: 
-    #  任务数量应该跟敌方智能体数量相同
-    enemy_feats_size = env.get_obs_enemy_feats_size()
-
-    args.n_tasks = enemy_feats_size[0]
-        # network
     args.rnn_hidden_dim = 64 * 3
     args.qmix_hidden_dim = 32 
     args.two_hyper_layers = False
@@ -204,3 +198,8 @@ def get_g2anet_args(args):
     args.hard = True
     return args
 
+def get_multi_reward_args(args, env):
+    env.reset()
+    args.n_tasks = env.n_tasks
+    args.reward_assign = env.reward_assign
+    return args

@@ -25,19 +25,13 @@ if __name__ == '__main__':
         args = get_commnet_args(args)
     if args.alg.find('g2anet') > -1:
         args = get_g2anet_args(args)
-    if args.n_tasks > 1:
-        env = StarCraft2Env(map_name=args.map,
-                            step_mul=args.step_mul,
-                            difficulty=args.difficulty,
-                            game_version=args.game_version,
-                            replay_dir=args.replay_dir,
-                            reward_multi_task=True)
-    else:
-        env = StarCraft2Env(map_name=args.map,
-                step_mul=args.step_mul,
-                difficulty=args.difficulty,
-                game_version=args.game_version,
-                replay_dir=args.replay_dir)
+
+    env = StarCraft2Env(map_name=args.map,
+                        step_mul=args.step_mul,
+                        difficulty=args.difficulty,
+                        game_version=args.game_version,
+                        replay_dir=args.replay_dir,
+                        reward_task_dec_type=args.task_dec_type)
 
     env_info = env.get_env_info()
     args.n_actions = env_info["n_actions"]
@@ -48,7 +42,9 @@ if __name__ == '__main__':
 
     if args.alg.find('task_decomposition') > -1:
         args = get_task_decomposition_args(args, env)
-
+        
+    if args.task_dec_type !='':
+        args = get_task_decomposition_args(args, env)
 
 
     runner = Runner(env, args)

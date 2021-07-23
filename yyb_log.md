@@ -152,7 +152,8 @@
     - 首先将得到的 actions，转化为pysc2可用的动作，并向客户端进行请求 。
     - `self.update_units()`更新所有观察，到类属性中(如self.enemies, self.agents等)。返回 `game_end_code` 如果游戏能够判定胜负或者平局，就分别为+-1或0，如果还未能判定则返回None
     - $max_reward = n_ennemies * reward_death_value + reward_win + 所有敌人的血量和护盾值之和$, $reward_scale_rate = 20$,返回的reward计算方法： $reward = reward / max_reward * reward_scale_rate$
-    - 
+  11. `get_init_reward`改写
+    - 在 `reset`中 `init_unit`后，与pysc2的环境进行交互初始化，在 env.enemies 中有 unit_type (int) 表示敌方单元的类别。
 
 ## 代码实现：
 1. 如何使用2个loss更新不同的参数：https://discuss.pytorch.org/t/how-to-have-two-optimizers-such-that-one-optimizer-trains-the-whole-parameter-and-the-other-trains-partial-of-the-parameter/62966
