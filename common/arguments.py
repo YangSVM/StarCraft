@@ -70,7 +70,7 @@ def get_coma_args(args):
 # arguments of vnd、 qmix、 qtran
 def get_mixer_args(args):
     # multi task
-    args.n_tasks = 3
+    # args.n_tasks = 3
     
     # network
     args.rnn_hidden_dim = 64
