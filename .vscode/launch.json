@@ -12,10 +12,14 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args":[
-                "--alg=qmix",
-                "--map=3m",
-                "--task_dec_type=n_enemy",
+                "--alg=task_decomposition",
+                "--map=2s3z",
+                "--task_dec_type=unit_type",
                 "--multi_process_n=10",
+                
+                //use for evaluate model.
+                // "--load_model=True",
+                // "--evaluate=True",
             ],
             "env": {
                 "PYTHONPATH": "/home/tiecun/codes/MARL/simulation/smac" 

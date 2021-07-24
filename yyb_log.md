@@ -154,6 +154,9 @@
     - $max_reward = n_ennemies * reward_death_value + reward_win + 所有敌人的血量和护盾值之和$, $reward_scale_rate = 20$,返回的reward计算方法： $reward = reward / max_reward * reward_scale_rate$
   11. `get_init_reward`改写
     - 在 `reset`中 `init_unit`后，与pysc2的环境进行交互初始化，在 env.enemies 中有 unit_type (int) 表示敌方单元的类别。
+  12. `reset`函数逻辑：
+    - reset有2种情况。为了加速，不会重新启动一局新的游戏，而是会杀死所有单元，然后用pysc2的controll中的step(2)就能够重新产生新的单元。但是此时并没有把 _episode_count 加1？他的判定是每次terminated后+1...感觉有些不合理。
+    - terminated后不能在继续step。应该reset后继续使用。并且在第一个 terminated之前，不能够env.reset()，否则max_reward会出错
 
 ## 代码实现：
 1. 如何使用2个loss更新不同的参数：https://discuss.pytorch.org/t/how-to-have-two-optimizers-such-that-one-optimizer-trains-the-whole-parameter-and-the-other-trains-partial-of-the-parameter/62966

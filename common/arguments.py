@@ -199,7 +199,8 @@ def get_g2anet_args(args):
     return args
 
 def get_multi_reward_args(args, env):
-    env.reset()
+    env.reset4get_args()
     args.n_tasks = env.n_tasks
     args.reward_assign = env.reward_assign
+
     return args
