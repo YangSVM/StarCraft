@@ -5,9 +5,9 @@ import torch
 import torch.nn.functional as F
 
 
-class TaskDecomposition(nn.Module):
+class TaskDecompositionAll(nn.Module):
     def __init__(self, args):
-        super(TaskDecomposition, self).__init__()
+        super(TaskDecompositionAll, self).__init__()
         self.args = args
         # 因为生成的hyper_w1需要是一个矩阵，而pytorch神经网络只能输出一个向量，
         # 所以就先输出长度为需要的 矩阵行*矩阵列 的向量，然后再转化成矩阵
@@ -45,11 +45,16 @@ class TaskDecomposition(nn.Module):
             nn.ModuleList(self.hypers_w1),nn.ModuleList(self.hypers_w2),nn.ModuleList(self.hypers_b1),nn.ModuleList(self.hypers_b2)
 
 
-    def forward(self, q_values_all, states, i_task):  # states的shape为(episode_num, max_episode_len， state_shape)
+    def forward(self, q_values_all, states):  
+        '''
+        Returns:    
+            q_values_list: n_tasks长的list.表示每个任务的输入
+        '''
+        # states的shape为(episode_num, max_episode_len， state_shape)
         # i_task shape (n_episode, max_episode_len, n_agent)
-        # q_values_all shape (n_episode, max_episode_len, n_agent)
+        # q_values_all shape (n_episode, max_episode_len, n_agent, n_tasks, n_actions )
 
-        q_values_list = self.q_value_dec(q_values_all, i_task)
+        q_values_list = self.q_value_dec(q_values_all)
         hyper_networks = []
         # 需要根据i_task，输送到不同的网络 
         for i in range(self.n_tasks):
@@ -78,15 +83,15 @@ class TaskDecomposition(nn.Module):
         return hyper_networks, q_values_list
 
     
-    def q_value_dec(self, q_values, i_tasks):
-        '''将任务分解成
+    def q_value_dec(self, q_values):
+        '''
+        Params:
+            q_values: (n_episode, episode_len, n_agents, n_tasks)
+        Returns:    
+            q_list: n_tasks长的list.表示每个任务的输入。每个元素均为
         '''
         q_list = []
 
         for i in range(self.n_tasks):
-            q = torch.zeros(q_values.shape)
-            assert q_values.shape == i_tasks.shape, print('error. ')
-            mask = i_tasks==i
-            q[mask] = q_values[mask]
-            q_list.append(q)
+            q_list.append(q_values[..., i])
         return q_list

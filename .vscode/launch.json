@@ -12,9 +12,10 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args":[
-                "--alg=task_decomposition",
-                "--map=2s3z",
-                "--task_dec_type=unit_type",
+                "--alg=task_decomposition_all",
+                "--map=3m",
+                // "--task_dec_type=unit_type",
+                "--task_dec_type=n_enemy",
                 "--multi_process_n=10",
                 
                 //use for evaluate model.

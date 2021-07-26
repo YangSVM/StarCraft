@@ -33,7 +33,7 @@ def get_common_args():
     parser.add_argument('--evaluate', type=bool, default=False, help='whether to evaluate the model')
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
     parser.add_argument('--n_tasks', type=int, default=1, help='how many task in td')
-    parser.add_argument('--task_dec_type', type=str, default='', help='which type would you want.')
+    parser.add_argument('--task_dec_type', type=str, default='', help='which type would you want. n_enemy, equal, unit_type. default sum')
     parser.add_argument('--multi_process_n', type=int, default=5, help='whether to use multi process or not')
     args = parser.parse_args()
     return args

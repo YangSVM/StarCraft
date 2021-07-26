@@ -40,6 +40,9 @@ class Agents:
         elif   args.alg == 'task_decomposition':
             from policy.task_decomposition import TD
             self.policy = TD(args)
+        elif args.alg == 'task_decomposition_all':
+            from policy.task_decomposition_all import TDAll
+            self.policy = TDAll(args)
         else:
             raise Exception("No such algorithm")
         self.args = args
@@ -78,6 +81,9 @@ class Agents:
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state, maven_z)
         elif self.args.alg == 'task_decomposition':
             q_value, self.policy.eval_hidden[:, agent_num, :], _ = self.policy.eval_rnn(inputs, hidden_state)
+        elif self.args.alg.find('task_decomposition_all')>-1:
+            q_value_all, self.policy.eval_hidden[:, agent_num, :]= self.policy.eval_rnn(inputs, hidden_state)
+            q_value, _ = self.policy.find_task_q(q_value_all)
         else:
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
 
@@ -92,6 +98,8 @@ class Agents:
             else:
                 action = torch.argmax(q_value)
         return action
+
+
 
     def _choose_action_from_softmax(self, inputs, avail_actions, epsilon, evaluate=False):
         """
