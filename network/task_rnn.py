@@ -61,7 +61,7 @@ class TaskRNN(nn.Module):
 class TaskRNNMax(nn.Module):
     # Because all the agents share the same network, input_shape=obs_shape+n_actions+n_agents
     def __init__(self, input_shape, args):
-        super(TaskRNN, self).__init__()
+        super(TaskRNNMax, self).__init__()
         self.args = args
         self.n_tasks = args.n_tasks
         self.fc1 = nn.Linear(input_shape, args.rnn_hidden_dim)
@@ -108,7 +108,7 @@ class TaskRNNMax(nn.Module):
 
         # print(type(i_task), i_task)
         # 2. 取对应项相乘，计算
-        i_task = i_task.unsqueeze(-1).unsqueeze(-1)
+        i_task = torch.tensor(i_task).unsqueeze(-1).unsqueeze(-1)
         i_task_shape = list(q_shape)
         i_task_shape[-2] =  1
         i_task = i_task.expand(i_task_shape)                # i_task_shape   (n_episode, 1, n_actions)
