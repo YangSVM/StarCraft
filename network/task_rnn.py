@@ -104,7 +104,7 @@ class TaskRNNMax(nn.Module):
         i_max_q = np.unravel_index(i_max_q, q.shape)            # 最大值的坐标.list: ndim, (ndarry,... )
 
         # 1. 取最后一个维度第一个数作为task selector, 选择最擅长的task
-        i_task = i_max_q[0]                 # ndarray: (n_episode*n_agent,) or (n_episode)
+        i_task = i_max_q[1]                 # ndarray: (n_episode*n_agent,) or (n_episode)
 
         # print(type(i_task), i_task)
         # 2. 取对应项相乘，计算
