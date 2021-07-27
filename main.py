@@ -34,11 +34,13 @@ if __name__ == '__main__':
         args.obs_shape = env_info["obs_shape"]
         args.episode_limit = env_info["episode_limit"]
 
-        if args.alg.find('task_decomposition') > -1:
-            args = get_task_decomposition_args(args, env)
 
         if args.task_dec_type !='':
             args = get_multi_reward_args(args, env)
+
+        if args.alg.find('task_decomposition') > -1:
+            args = get_task_decomposition_args(args)
+
         runner = Runner(env, args)
         if args.multi_process_n >  -1:
             n_run = 1 * args.multi_process_n + i

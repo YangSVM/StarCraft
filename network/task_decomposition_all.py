@@ -52,7 +52,7 @@ class TaskDecompositionAll(nn.Module):
         '''
         # states的shape为(episode_num, max_episode_len， state_shape)
         # i_task shape (n_episode, max_episode_len, n_agent)
-        # q_values_all shape (n_episode, max_episode_len, n_agent, n_tasks, n_actions )
+        # q_values_all shape (n_episode, max_episode_len, n_agent, n_tasks )
 
         q_values_list = self.q_value_dec(q_values_all)
         hyper_networks = []

@@ -24,7 +24,7 @@ class RolloutWorker:
     def generate_episode(self, episode_num=None, evaluate=False):
         if self.args.replay_dir != '' and evaluate and episode_num == 0:  # prepare for save replay of evaluation
             self.env.close()
-        o, u, r, s, avail_u, u_onehot, terminate, padded = [], [], [], [], [], [], [], []
+        o, u, r, s, avail_u, u_onehot, terminate, padded, i_task = [], [], [], [], [], [], [], [], []
         self.env.reset()
         terminated = False
         win_tag = False
@@ -58,6 +58,9 @@ class RolloutWorker:
                 if self.args.alg == 'maven':
                     action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
                                                        avail_action, epsilon, maven_z, evaluate)
+                elif self.args.alg == 'task_decomposition':
+                    action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
+                                                       avail_action, epsilon, evaluate)
                 else:
                     action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
                                                        avail_action, epsilon, evaluate)

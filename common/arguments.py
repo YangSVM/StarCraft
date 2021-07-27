@@ -165,12 +165,12 @@ def get_reinforce_args(args):
 
     return args
 
-def get_task_decomposition_args(args, env):
+def get_task_decomposition_args(args):
     # network: 
-    args.rnn_hidden_dim = 64 * 3
+    args.rnn_hidden_dim = 64 * args.n_tasks
     args.qmix_hidden_dim = 32 
     args.two_hyper_layers = False
-    args.hyper_hidden_dim = 16
+    args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
     args.lr = 5e-4
 

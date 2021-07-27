@@ -1,7 +1,9 @@
+from numpy.lib.type_check import imag
 from torch._C import qscheme
 import torch.nn as nn
 import torch.nn.functional as f
 import torch
+import numpy as np
 
 class TaskRNN(nn.Module):
     # Because all the agents share the same network, input_shape=obs_shape+n_actions+n_agents
@@ -55,3 +57,65 @@ class TaskRNN(nn.Module):
         
         return q, h, i_task
 
+
+class TaskRNNMax(nn.Module):
+    # Because all the agents share the same network, input_shape=obs_shape+n_actions+n_agents
+    def __init__(self, input_shape, args):
+        super(TaskRNN, self).__init__()
+        self.args = args
+        self.n_tasks = args.n_tasks
+        self.fc1 = nn.Linear(input_shape, args.rnn_hidden_dim)
+        self.rnn = nn.GRUCell(args.rnn_hidden_dim, args.rnn_hidden_dim)
+        # args.n_actions +1 ：动作维数+task selector. 每个任务不同的策略。
+        self.fc2 = nn.Linear(args.rnn_hidden_dim, args.n_actions * args.n_tasks)
+
+    def forward(self, obs, hidden_state, evaluate = False, num = 0):
+        '''
+        Params:
+            obs: (n_episode,  n_obs+...). or (n_episode*n_agent, n_obs+...)
+            hidden_state: (n_episode, n_agent, rnn_hidden_dim)
+        Return:
+            q: (n_episode,  n_actions), or (n_episode*n_agent,  n_actions)
+            i_task: (n_episode) or (n_episode*n_agent)
+        '''
+
+        x = f.relu(self.fc1(obs))
+        h_in = hidden_state.reshape(-1, self.args.rnn_hidden_dim)
+        h = self.rnn(x, h_in)
+        q = self.fc2(h)
+        # 保证所有的q都是正数
+        q = f.relu(q)
+
+        '''选择对应的task
+        先取max，获得每个(n_episode*n_agent,) 下, q的最大值的位置，从而找到对应的 task
+        args.n_actions * args.n_tasks
+        '''
+
+        i_max_q = q.argmax(dim=1)
+
+
+
+        q_shape = list(q.shape)
+        q_shape.append(-1)
+        q_shape[-2] = self.n_tasks
+        q = q.view(q_shape)
+        q_shape = q.shape           #  q_shape: (n_episode, n_tasks, n_actions)
+
+        i_max_q = np.unravel_index(i_max_q, q.shape)            # 最大值的坐标.list: ndim, (ndarry,... )
+
+        # 1. 取最后一个维度第一个数作为task selector, 选择最擅长的task
+        i_task = i_max_q[0]                 # ndarray: (n_episode*n_agent,) or (n_episode)
+
+        # print(type(i_task), i_task)
+        # 2. 取对应项相乘，计算
+        i_task = i_task.unsqueeze(-1).unsqueeze(-1)
+        i_task_shape = list(q_shape)
+        i_task_shape[-2] =  1
+        i_task = i_task.expand(i_task_shape)                # i_task_shape   (n_episode, 1, n_actions)
+        q = torch.gather(q, dim=-2, index=i_task)
+        q = q.squeeze(-2)
+        i_task = i_task.squeeze(1)
+        i_task = i_task[..., 0]                         #  (n_episode*n_agent)
+
+        
+        return q, h, i_task

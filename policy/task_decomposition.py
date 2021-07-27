@@ -1,7 +1,7 @@
 from policy.qtran_alt import QtranAlt
 import torch
 import os
-from network.task_rnn import TaskRNN
+from network.task_rnn import TaskRNN, TaskRNNMax
 from network.task_decomposition import TaskDecomposition
 import torch.nn.functional as F
 import time
@@ -21,8 +21,8 @@ class TD:
             input_shape += self.n_agents
 
         # 神经网络
-        self.eval_rnn = TaskRNN(input_shape, args)  # 每个agent选动作的网络
-        self.target_rnn = TaskRNN(input_shape, args)
+        self.eval_rnn = TaskRNNMax(input_shape, args)  # 每个agent选动作的网络
+        self.target_rnn = TaskRNNMax(input_shape, args)
         self.eval_task_net = TaskDecomposition(args)  # 把agentsQ值加起来的网络
         self.target_task_net = TaskDecomposition(args)
         self.args = args
@@ -78,7 +78,7 @@ class TD:
                                                              batch['terminated']
         mask = 1 - batch["padded"].float()  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
 
-        # 得到每个agent对应的Q值，维度为(episode个数, max_episode_len， n_agents， n_tasks * (n_actions + 1))
+        # 得到每个agent对应的Q值，维度为(episode个数, max_episode_len， n_agents， n_actions)
         q_evals, q_targets, i_task, i_task_target = self.get_q_values(batch, max_episode_len)
 
         if self.args.cuda:
@@ -216,7 +216,7 @@ class TD:
 
             # 获得 相应任务的最优动作的q值，rnn的隐藏层，以及选了哪个任务
             # 
-            q_eval, self.eval_hidden, i_task = self.eval_rnn(inputs, self.eval_hidden)  # inputs维度为(3,42)，得到的q_eval维度为(40,n_actions)
+            q_eval, self.eval_hidden, i_task = self.eval_rnn(inputs, self.eval_hidden)  # q_eval维度为(n_episode*n_agents,n_actions)
             q_target, self.target_hidden, i_task_target= self.target_rnn(inputs_next, self.target_hidden)
 
             # 把q_eval维度重新变回(8, 5,n_actions)
