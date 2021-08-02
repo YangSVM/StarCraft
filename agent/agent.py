@@ -43,6 +43,9 @@ class Agents:
         elif args.alg == 'task_decomposition_all':
             from policy.task_decomposition_all import TDAll
             self.policy = TDAll(args)
+        elif args.alg == 'task_decomposition_all_without_task':
+            from policy.task_decomposition_all_without_task import TDAll
+            self.policy = TDAll(args)
         else:
             raise Exception("No such algorithm")
         self.args = args
@@ -81,9 +84,12 @@ class Agents:
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state, maven_z)
         elif self.args.alg == 'task_decomposition':
             q_value, self.policy.eval_hidden[:, agent_num, :], _ = self.policy.eval_rnn(inputs, hidden_state)
-        elif self.args.alg.find('task_decomposition_all')>-1:
+        elif self.args.alg ==('task_decomposition_all'):
             q_value_all, self.policy.eval_hidden[:, agent_num, :]= self.policy.eval_rnn(inputs, hidden_state)
             q_value, _ = self.policy.find_task_q(q_value_all)
+        elif self.args.alg == 'task_decomposition_all_without_task':
+            q_value_all, self.policy.eval_hidden[:, agent_num, :]= self.policy.eval_rnn(inputs, hidden_state)
+            q_value = q_value_all.sum(dim=-2)
         else:
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
 

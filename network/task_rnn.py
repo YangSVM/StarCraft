@@ -84,7 +84,7 @@ class TaskRNNMax(nn.Module):
         h = self.rnn(x, h_in)
         q = self.fc2(h)
         # 保证所有的q都是正数
-        q = f.relu(q)
+        q = torch.sigmoid(q)
 
         '''选择对应的task
         先取max，获得每个(n_episode*n_agent,) 下, q的最大值的位置，从而找到对应的 task

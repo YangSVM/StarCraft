@@ -12,15 +12,18 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args":[
-                "--alg=task_decomposition",
-                "--map=3m",
+                "--alg=task_decomposition_all_without_task",
+                "--map=2s3z",
                 // "--task_dec_type=unit_type",
                 "--task_dec_type=n_enemy",
-                "--multi_process_n=10",
+                "--multi_process_n=100",
                 
                 //use for evaluate model.
                 // "--load_model=True",
                 // "--evaluate=True",
+
+                //fast test
+                // "--"
             ],
             "env": {
                 "PYTHONPATH": "/home/tiecun/codes/MARL/simulation/smac" 
