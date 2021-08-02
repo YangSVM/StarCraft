@@ -105,9 +105,10 @@ class TDAll:
         q_targets[avail_u_next == 0.0] = - 9999999
         # 通过 i_task_target 选择对应行，找出最大价值的动作，选出该动作对应的所有任务的q值。
         i_task_target_shape = list(q_targets.shape)
-        i_task_target_shape[-2] = 1
-        
-        q_targets_seletor  = u_max_q_targets.unsqueeze(-1).expand(i_task_target_shape) # shape: (n_episode, episode_len, n_agents, 1(task), n_actions)
+        i_task_target_shape[-2] = self.n_tasks
+        i_task_target_shape[-1] = 1
+
+        q_targets_seletor  = u_max_q_targets.unsqueeze(-2).expand(i_task_target_shape) # shape: (n_episode, episode_len, n_agents, 1(task), n_actions)
 
         q_targets =  torch.gather(q_targets, dim=-1, index=q_targets_seletor).squeeze(-1)   # shape: (n_episode, episode_len, n_agents, n_tasks)
 
