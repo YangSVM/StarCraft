@@ -1,5 +1,7 @@
 import argparse
 
+from numpy.lib.function_base import select
+
 """
 Here are the param for the training
 
@@ -171,7 +173,7 @@ def get_task_decomposition_args(args):
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 5e-4
+    args.lr = 5e-5
 
     # epsilon greedy
     args.epsilon = 1
