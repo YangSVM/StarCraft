@@ -13,7 +13,7 @@
             "console": "integratedTerminal",
             "args":[
                 "--alg=task_decomposition_all_without_task",
-                "--map=2s3z",
+                "--map=3m",
                 // "--task_dec_type=unit_type",
                 "--task_dec_type=n_enemy",
                 "--multi_process_n=100",

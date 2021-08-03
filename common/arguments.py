@@ -32,7 +32,6 @@ def get_common_args():
     parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
     parser.add_argument('--evaluate', type=bool, default=False, help='whether to evaluate the model')
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
-    parser.add_argument('--n_tasks', type=int, default=1, help='how many task in td')
     parser.add_argument('--task_dec_type', type=str, default='', help='which type would you want. n_enemy, equal, unit_type. default sum')
     parser.add_argument('--multi_process_n', type=int, default=5, help='whether to use multi process or not')
     args = parser.parse_args()
@@ -167,7 +166,7 @@ def get_reinforce_args(args):
 
 def get_task_decomposition_args(args):
     # network: 
-    args.rnn_hidden_dim = 64 * args.n_tasks
+    args.rnn_hidden_dim = 64
     args.qmix_hidden_dim = 32 
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64

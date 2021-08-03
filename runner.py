@@ -50,7 +50,7 @@ class Runner:
             # 下面要把所有episode的的key拼在一起
             episode_batch = episodes[0]
             episodes.pop(0)
-            for episode in episodes:
+            for episode in episodes:                #这里似乎永远不会进去？考虑加一个assert 1==0
                 for key in episode_batch.keys():
                     episode_batch[key] = np.concatenate((episode_batch[key], episode[key]), axis=0)
             if self.args.alg.find('coma') > -1 or self.args.alg.find('central_v') > -1 or self.args.alg.find('reinforce') > -1:
