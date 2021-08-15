@@ -189,3 +189,17 @@
 
 ## 存在问题
 - 不传0版本的时候，q可能会出现选择了任务i，但是别的任务的q更大的情况...是不是不合理？是否考虑使用q矩阵先任务维度求和，选择q最大的版本
+
+
+## 改进方向
+- mixing 输入onehot代替的q。比如选择对应动作2，输入值为(0,0,q)
+
+
+## 各版本网络介绍(按照policy分类)
+- task_decomposition: (按照选用的rnn分类。在代码中eval_rnn 和target_rnn改用模型即实现不同功能)
+  - TaskRNN: 最原始版本。有task_score。传0。task_score和q值相乘传进去。
+  - TaskRNNMax: 没有task_score。根据矩阵中的最大值选择task。传0。
+- task_decomposition_all: 
+  - 仅能选用task_rnn_all.py中的TaskRNNAll。有task_score。不传0。task_score和q值相乘传进去。
+- task_decomposition_all_without_task
+  - TaskRNNAllwoTask：没有task_score。不传0。按列求和选出最高的action，传到各个网络。
