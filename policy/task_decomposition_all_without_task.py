@@ -1,4 +1,3 @@
-from policy.qtran_alt import QtranAlt
 import torch
 import os
 from network.task_rnn_all import TaskRNNAll, TaskRNNAllwoTask
@@ -143,7 +142,7 @@ class TDAll:
 
         # loss = loss1+loss2
         self.optimizer.zero_grad()
-        loss1.backward()
+        loss1.backward(retain_graph=True)
         # for parm in self.eval_task_net.parameters():
         #     x =parm.grad.data.cpu().numpy()
         loss2.backward()
@@ -171,9 +170,10 @@ class TDAll:
             episode_num = qi.size(0)
             qi = qi.view(-1, 1, self.args.n_agents)  # (episode_num * max_episode_len, 1, n_agents) = (1920,1,5)
             if is_grad4rnn:
-                hidden = F.elu(torch.bmm(qi, w1.detach()) + b1.detach())  # (1920, 1, 32)
-                Qi = torch.bmm(hidden, w2.detach()) + b2.detach()  # (1920, 1, 1)
-
+                # hidden = F.elu(torch.bmm(qi, w1.detach()) + b1.detach())  # (1920, 1, 32)
+                # Qi = torch.bmm(hidden, w2.detach()) + b2.detach()  # (1920, 1, 1)
+                hidden = F.elu(torch.bmm(qi, w1) + b1)  # (1920, 1, 32)
+                Qi = torch.bmm(hidden, w2) + b2  # (1920, 1, 1)
             else:
                 hidden = F.elu(torch.bmm(qi.detach(), w1) + b1)  # (1920, 1, 32)
                 Qi = torch.bmm(hidden, w2) + b2  # (1920, 1, 1)

@@ -1,4 +1,5 @@
-from policy.qtran_alt import QtranAlt
+''' 传0
+'''
 import torch
 import os
 from network.task_rnn import TaskRNN, TaskRNNMax

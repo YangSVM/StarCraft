@@ -16,7 +16,7 @@
                 "--map=3m",
                 // "--task_dec_type=unit_type",
                 "--task_dec_type=n_enemy",
-                "--multi_process_n=100",
+                "--multi_process_n=103",
                 
                 //use for evaluate model.
                 // "--load_model=True",

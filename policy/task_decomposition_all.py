@@ -1,4 +1,5 @@
-from policy.qtran_alt import QtranAlt
+''' 不传0。有task score。上传task score*最大值
+'''
 import torch
 import os
 from network.task_rnn_all import TaskRNNAll
@@ -21,9 +22,9 @@ class TDAll:
             input_shape += self.n_agents
 
         # 神经网络
-        self.eval_rnn = TaskRNNAll(input_shape, args)  # 每个agent选动作的网络
+        self.eval_rnn = TaskRNNAll(input_shape, args)  # rnn
         self.target_rnn = TaskRNNAll(input_shape, args)
-        self.eval_task_net = TaskDecompositionAll(args)  # 把agentsQ值加起来的网络
+        self.eval_task_net = TaskDecompositionAll(args)  # mixing
         self.target_task_net = TaskDecompositionAll(args)
         self.args = args
         if self.args.cuda:
@@ -78,8 +79,8 @@ class TDAll:
                                                              batch['terminated']
         mask = 1 - batch["padded"].float()  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
 
-        # 得到每个agent对应的Q值，维度为(episode个数, max_episode_len， n_agents， n_tasks , n_actions )
-        # i_task shape: (episode个数, max_episode_len， n_agents)
+        # q_evals (n_episode, max_episode_len， n_agents， n_tasks , n_actions )
+        # i_task_target shape: (n_episode, max_episode_len， n_agents)
         q_evals, q_targets, i_task, i_task_target = self.get_q_values(batch, max_episode_len)
 
         if self.args.cuda:
@@ -91,7 +92,7 @@ class TDAll:
             mask = mask.cuda()
         
 
-        # 取每个agent动作对应的Q值，并且把最后不需要的一维去掉，因为仅采取一个动作。(n_episode, episode_len, n_agent)
+        # 取每个agent动作对应的Q值，并且把最后不需要的一维去掉，因为仅采取一个动作。(n_episode, episode_len, n_agent, n_tasks)
         u_shape = list(u.shape)
         u_shape.insert(3, self.n_tasks)
         u = u.unsqueeze(-2).expand(u_shape)                                                     # u shape: (n_episode, episode_len, n_agent, n_tasks, 1)
@@ -119,8 +120,8 @@ class TDAll:
         hyper_networks, q_values_list = self.eval_task_net(q_evals, s)
         hyper_networks_target, q_targets_list  = self.target_task_net(q_targets, s_next)
 
-        q_total_eval = sum(self.calc_q_total(q_values_list, hyper_networks))
-        q_total_target = sum(self.calc_q_total(q_targets_list, hyper_networks_target))
+        q_total_eval = sum(self.calc_Qis(q_values_list, hyper_networks))
+        q_total_target = sum(self.calc_Qis(q_targets_list, hyper_networks_target))
 
 
         # q_total_target = self.target_qmix_net(q_targets, s_next, i_task_target)
@@ -133,8 +134,8 @@ class TDAll:
         # 不能直接用mean，因为还有许多经验是没用的，所以要求和再比真实的经验数，才是真正的均值
         loss1 = (masked_td_error ** 2).sum() / mask.sum()
 
-        q_tasks = self.calc_q_total(q_values_list, hyper_networks, is_grad4rnn=False)
-        q_tasks_targets = self.calc_q_total(q_targets_list, hyper_networks_target, is_grad4rnn=False)
+        q_tasks = self.calc_Qis(q_values_list, hyper_networks, is_grad4rnn=False)
+        q_tasks_targets = self.calc_Qis(q_targets_list, hyper_networks_target, is_grad4rnn=False)
         q_tasks = torch.cat(q_tasks, dim=-1)
         q_tasks_targets = torch.cat(q_tasks_targets, dim=-1)
         q_tasks_targets = r + self.args.gamma * q_tasks_targets * (1 - terminated)
@@ -158,7 +159,7 @@ class TDAll:
             self.target_task_net.load_state_dict(self.eval_task_net.state_dict())
 
 
-    def calc_q_total(self, q_list, hyper_networks, is_grad4rnn=True):
+    def calc_Qis(self, q_list, hyper_networks, is_grad4rnn=True):
         '''
         Params:
             q_list: n_task长list.代表第i任务输入的q。
@@ -219,7 +220,9 @@ class TDAll:
         inputs_next = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs_next], dim=1)
         return inputs, inputs_next
 
-    def get_q_values(self, batch, max_episode_len, require_grad=True):
+    def get_q_values(self, batch, max_episode_len):
+        ''' 输出q矩阵(乘以相应的task score)。以及选择了哪个任务
+        '''
         episode_num = batch['o'].shape[0]
         q_evals, q_targets = [], []
         i_tasks, i_task_targets= [], []
@@ -233,41 +236,47 @@ class TDAll:
                 self.target_hidden = self.target_hidden.cuda()
 
 
-            # 获得 相应任务的最优动作的q值，rnn的隐藏层，以及选了哪个任务
-            # 
-            q_eval, self.eval_hidden = self.eval_rnn(inputs, self.eval_hidden)  # inputs维度为(3,42)，得到的q_eval维度为(40,n_actions)
+            # rnn输出: 整个矩阵(包括task score)
+            q_eval, self.eval_hidden = self.eval_rnn(inputs, self.eval_hidden)  # q_eval (n_episode*n_agents, n_tasks, n_actions+1)
             q_target, self.target_hidden= self.target_rnn(inputs_next, self.target_hidden)
+
             _, i_task= self.find_task_q(q_eval)
-            _, i_task_target= self.find_task_q(q_target)
+            _, i_task_target= self.find_task_q(q_target)        # 找出task score最大的行。
             q_table_shape = list(q_eval.shape)
             q_table_shape[-1] -= 1 
+
+            # 将q矩阵每一项乘以对应的task score. 
+            # q_eval:  (n_episode*n_agents, n_tasks, n_actions)
             q_eval = q_eval[..., 0].unsqueeze(-1).expand(q_table_shape) * q_eval[..., 1:]
             q_target = q_target[..., 0].unsqueeze(-1).expand(q_table_shape) * q_target[..., 1:]
+            
             # 把q_eval维度重新变回(episode_num, n_agents, n_tasks, n_actions)
             q_eval = q_eval.view(episode_num, self.n_agents, self.n_tasks,-1)
             q_target = q_target.view(episode_num, self.n_agents, self.n_tasks, -1)
             i_task = i_task.view(episode_num, self.n_agents, -1)
             i_task_target = i_task_target.view(episode_num, self.n_agents, -1)
+            
             q_evals.append(q_eval)
             q_targets.append(q_target)
             i_tasks.append(i_task)
             i_task_targets .append(i_task_target)
-        # 得的q_eval和q_target是一个列表，列表里装着max_episode_len个数组，数组的的维度是(episode个数, n_agents，n_actions)
-        # 把该列表转化成(episode个数, max_episode_len， n_agents，n_actions)的数组
+        # 得的q_eval和q_target是一个列表，列表里装着max_episode_len个数组，数组的的维度是(n_episode, n_agents，n_actions)
+        # 把该列表转化成(n_episode, max_episode_len， n_agents，n_actions)的数组
+        # 将for里面的每个时刻叠起来
         q_evals = torch.stack(q_evals, dim=1)
         q_targets = torch.stack(q_targets, dim=1)
         i_tasks = torch.stack(i_tasks, dim=1).squeeze(-1)
         i_task_targets = torch.stack(i_task_targets, dim=1).squeeze(-1)
         
-        # q_evals (episode_num, n_agents, n_tasks, n_actions)
+        # q_evals (episode_num, max_episode_len, n_agents, n_tasks, n_actions)
         return q_evals, q_targets, i_tasks, i_task_targets
     
     def find_task_q(self, q):
-        '''
+        ''' 给定带task score的q矩阵。输出选择了啥动作。以及对应的一行(乘上了相应的task score)。
         Params:
-            q: (n_episode, n_tasks, n_actions+1)
+            q: (n_episode, n_tasks, n_actions+1)。带task score的q矩阵。
         Returns:
-            q:  (n_episode, n_tasks, n_actions)
+            q:  (n_episode, 1, n_actions)。 
             i_task: (n_episode, n_tasks, n_actions)
         '''
         q_shape = q.shape
