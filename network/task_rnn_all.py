@@ -53,7 +53,7 @@ class TaskRNNAllwoTask(nn.Module):
         self.fc1 = nn.Linear(input_shape, args.rnn_hidden_dim)
         self.rnn = nn.GRUCell(args.rnn_hidden_dim, args.rnn_hidden_dim)
         # args.n_actions：动作维数。没有task score。
-        self.fc2 = nn.Linear(args.rnn_hidden_dim, (args.n_actions) * args.n_tasks)
+        self.fc2 = nn.Linear(args.rnn_hidden_dim, (args.n_actions + 1) * args.n_tasks)
 
     def forward(self, obs, hidden_state):
         ''' 不传0。输出整个task表格。没有task score。
@@ -73,12 +73,12 @@ class TaskRNNAllwoTask(nn.Module):
 
         '''将q值reshape成合适的矩阵进行输出。
         '''
-        q_shape = list(q.shape)         # shape: (n_episode, (n_actions ) * n_tasks)
+        q_shape = list(q.shape)         # shape: (n_episode, (n_actions +1) * n_tasks)
         q_shape.append(-1)
         q_shape[-2] = self.n_tasks
 
-        # q_shape: (n_episode, n_tasks, n_action)
+        # q_shape: (n_episode, n_tasks, n_action+1)
         q = q.view(q_shape)
-
+        q = q[..., 0].unsqueeze(-1) * q[..., 1:]
 
         return q, h

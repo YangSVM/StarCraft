@@ -167,17 +167,17 @@ def get_reinforce_args(args):
 
 def get_task_decomposition_args(args):
     # network: 
-    args.rnn_hidden_dim = 64
+    args.rnn_hidden_dim = 64*args.n_tasks
     args.qmix_hidden_dim = 32 
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 5e-5
+    args.lr = 5e-4
 
     # epsilon greedy
     args.epsilon = 1
     args.min_epsilon = 0.05
-    anneal_steps = 500000
+    anneal_steps = 50000
     args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
     args.epsilon_anneal_scale = 'step'
     args.evaluate_epoch = 32

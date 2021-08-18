@@ -203,3 +203,5 @@
   - 仅能选用task_rnn_all.py中的TaskRNNAll。有task_score。不传0。task_score和q值相乘传进去。
 - task_decomposition_all_without_task
   - TaskRNNAllwoTask：没有task_score。不传0。按列求和选出最高的action，传到各个网络。
+  - TaskRNNAllwoTask(103): 更改梯度更新
+  - TaskRNNAllwoTask(8.17更新104)：有task_score。不传0。相乘后，按列求和选出最高的action，传到各个网络。()

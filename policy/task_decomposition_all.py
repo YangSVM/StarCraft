@@ -1,4 +1,5 @@
 ''' 不传0。有task score。上传task score*最大值
+修改成Q pi
 '''
 import torch
 import os
@@ -51,7 +52,8 @@ class TDAll:
 
         self.eval_parameters = list(self.eval_task_net.parameters()) + list(self.eval_rnn.parameters())
         if args.optimizer == "RMS":
-            self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=args.lr)
+            self.optimizer_rnn = torch.optim.RMSprop(self.eval_rnn.parameters(), lr=args.lr)
+            self.optimizer_mix = torch.optim.RMSprop(self.eval_task_net.parameters(), lr=args.lr)
 
 
         # 执行过程中，要为每个agent都维护一个eval_hidden
@@ -145,14 +147,17 @@ class TDAll:
         loss2 = (masked_td_task_error ** 2).sum() / mask.sum()
 
         # loss = loss1+loss2
-        self.optimizer.zero_grad()
+        self.optimizer_rnn.zero_grad()
+        self.optimizer_mix.zero_grad()
+        # loss1.backward(retain_graph=True)
         loss1.backward()
         # for parm in self.eval_task_net.parameters():
         #     x =parm.grad.data.cpu().numpy()
         loss2.backward()
         # loss.backward()
         torch.nn.utils.clip_grad_norm_(self.eval_parameters, self.args.grad_norm_clip)
-        self.optimizer.step()
+        self.optimizer_rnn.step()
+        self.optimizer_mix.step()
 
         if train_step > 0 and train_step % self.args.target_update_cycle == 0:
             self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
