@@ -173,7 +173,7 @@ def get_task_decomposition_args(args):
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
     args.lr = 5e-4
-
+    args.mix_lr = 3*5e-4
     # epsilon greedy
     args.epsilon = 1
     args.min_epsilon = 0.05

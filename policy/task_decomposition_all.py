@@ -53,7 +53,7 @@ class TDAll:
         self.eval_parameters = list(self.eval_task_net.parameters()) + list(self.eval_rnn.parameters())
         if args.optimizer == "RMS":
             self.optimizer_rnn = torch.optim.RMSprop(self.eval_rnn.parameters(), lr=args.lr)
-            self.optimizer_mix = torch.optim.RMSprop(self.eval_task_net.parameters(), lr=args.lr)
+            self.optimizer_mix = torch.optim.RMSprop(self.eval_task_net.parameters(), lr=args.mix_lr)
 
 
         # 执行过程中，要为每个agent都维护一个eval_hidden
@@ -106,6 +106,7 @@ class TDAll:
         avail_u_shape[-1] = self.n_actions
         avail_u_next = avail_u_next.unsqueeze(-2).expand(avail_u_shape)
         q_targets[avail_u_next == 0.0] = - 9999999
+        
         # 通过 i_task_target 选择对应行，找出最大价值的动作，选出该动作对应的所有任务的q值。
         i_task_target_shape = list(q_targets.shape)
         i_task_target_shape[-2] = 1         
