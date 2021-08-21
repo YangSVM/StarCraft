@@ -21,7 +21,6 @@ class matrix_game:
         t1 = 4
         t2 = 3
         reward = 0                  # 这句话没用
-        self.count += 1
         p_state = copy.deepcopy(self.state)
         state = self.state
         if state[0] == t1 and state[1] == t2:
@@ -51,7 +50,7 @@ class matrix_game:
 
         reward = [state[0] - p_state[0], state[1] - p_state[1], state[2] - p_state[2]]
         self.state = state
-        if self.count == 10: 
+        if self.count == self.env_info["episode_limit"]: 
             self.done = True
         return reward, self.done, self.win
     
