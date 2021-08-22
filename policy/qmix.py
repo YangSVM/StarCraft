@@ -165,6 +165,10 @@ class QMIX:
         q_targets = torch.stack(q_targets, dim=1)
         return q_evals, q_targets
 
+    def matrix(self, q_eval, action): 
+        q_eval = q_eval[0][action].unsqueeze(-1)
+        return q_eval
+        
     def init_hidden(self, episode_num):
         # 为每个episode中的每个agent都初始化一个eval_hidden、target_hidden
         self.eval_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
