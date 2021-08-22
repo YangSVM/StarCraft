@@ -5,8 +5,9 @@ import mg_complex
 import mg_simple
 
 if __name__ == '__main__':
-    for i in range(1):
+    for i in range(8):
         args = get_common_args()
+        args.time = i
         if args.alg.find('coma') > -1:
             args = get_coma_args(args)
         elif args.alg.find('central_v') > -1:
