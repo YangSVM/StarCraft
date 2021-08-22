@@ -1,6 +1,16 @@
 import copy
 import numpy as np
 
+'''
+复杂matrix game
+有三个task，两个agent
+任务0和1完成之后才能做任务2
+任务0任务量为4，任务1任务量为3，任务2任务量为1
+合作完成任务0有4的收益，单人完成收益为1
+合作完成任务1有3的收益，单人完成收益为1
+任务2只要完成就有收益
+任务2完成，游戏结束
+'''
 class matrix_game:
     env_info = {
         "n_actions":3,
@@ -8,7 +18,8 @@ class matrix_game:
         "n_agents":2,
         "state_shape":3,
         "obs_shape":3,
-        "episode_limit":10
+        "episode_limit":10,
+        "n_tasks":3
     }
     def __init__(self):
         self.done = 0
@@ -16,11 +27,10 @@ class matrix_game:
         self.state = [0, 0, 0]
         self.win = False
 
-    def step(self, action):
+    def step(self, action, qmix=False):
         self.count += 1
         t1 = 4
         t2 = 3
-        reward = 0                  # 这句话没用
         p_state = copy.deepcopy(self.state)
         state = self.state
         if state[0] == t1 and state[1] == t2:
@@ -28,7 +38,6 @@ class matrix_game:
                 state[2] = 1
                 self.done = 1
                 self.win = True
-                reward = 1                  # 这句话没用
         else: 
             if action[0] == 0: 
                 if action[1] == 0:
@@ -49,6 +58,8 @@ class matrix_game:
                     state[0] = min(t1, state[0] + 1) 
 
         reward = [state[0] - p_state[0], state[1] - p_state[1], state[2] - p_state[2]]
+        if qmix: 
+            reward = [state[0] - p_state[0] + state[1] - p_state[1] + state[2] - p_state[2]]
         self.state = state
         if self.count == self.env_info["episode_limit"]: 
             self.done = True
@@ -86,4 +97,7 @@ class matrix_game:
     
     def get_obs_enemy_feats_size(self):
         return [3]
+        
+    def get_env_info(self): 
+        return self.env_info 
 
