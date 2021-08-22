@@ -50,7 +50,7 @@ class Agents:
             raise Exception("No such algorithm")
         self.args = args
         if self.args.matrix_game == True: 
-            self.file_handler = open('matrix game.txt', mode = 'w')
+            self.file_handler = open('matrix game_{}.txt'.format(args.time), mode = 'w')
             # self.q_matrix = open('q_matrix.txt', mode = 'w')
             # state0情况初始化
             inputs = [0, 0, 0]
