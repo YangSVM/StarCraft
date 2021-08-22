@@ -33,12 +33,18 @@ class Runner:
             print('Run {}, time_steps {}'.format(num, time_steps))
             if time_steps // self.args.evaluate_cycle > evaluate_steps:
                 # evaluate_cycle： 5000
-                win_rate, episode_reward = self.evaluate()
-                print('win_rate is ', win_rate)
-                print('episode reward: ', episode_reward)
-                self.win_rates.append(win_rate)
-                self.episode_rewards.append(episode_reward)
-                self.plt(num)
+                if self.args.matrix_game == True: 
+                    if self.args.alg.find('task_decomposition_all')>-1:
+                        self.evaluate_matrix(time_steps)
+                    elif self.args.alg.find('qmix')>-1: 
+                        self.evaluate_matrix(time_steps)
+                else: 
+                    win_rate, episode_reward = self.evaluate()
+                    print('win_rate is ', win_rate)
+                    print('episode reward: ', episode_reward)
+                    self.win_rates.append(win_rate)
+                    self.episode_rewards.append(episode_reward)
+                    self.plt(num)
                 evaluate_steps += 1
             episodes = []
             # 收集self.args.n_episodes(1)个episodes
@@ -62,12 +68,15 @@ class Runner:
                     mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
-        win_rate, episode_reward = self.evaluate()
-        print('win_rate is ', win_rate)
-        print('reward is ', episode_reward)
-        self.win_rates.append(win_rate)
-        self.episode_rewards.append(episode_reward)
-        self.plt(num)
+        if self.args.matrix_game == False: 
+            win_rate, episode_reward = self.evaluate()
+            print('win_rate is ', win_rate)
+            print('reward is ', episode_reward)
+            self.win_rates.append(win_rate)
+            self.episode_rewards.append(episode_reward)
+            self.plt(num)
+        else: 
+            self.evaluate_matrix(time_steps)
 
     def evaluate(self):
         win_number = 0
@@ -78,6 +87,10 @@ class Runner:
             if win_tag:
                 win_number += 1
         return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
+    
+    def evaluate_matrix(self, tim_steps): 
+        print(tim_steps)
+        _, episode_reward, win_tag, _ = self.rolloutWorker.generate_episode(0, evaluate=True)
 
     def plt(self, num):
         plt.figure()
