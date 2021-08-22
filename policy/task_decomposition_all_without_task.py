@@ -59,7 +59,7 @@ class TDAll:
         # 学习过程中，要为每个episode的每个agent都维护一个eval_hidden、target_hidden
         self.eval_hidden = None
         self.target_hidden = None
-        print('Init alg Task Decomposition')
+        print('Init alg Task Decomposition without task')
 
     def learn(self, batch, max_episode_len, train_step, epsilon=None):  # train_step表示是第几次学习，用来控制更新target_net网络的参数
         '''
@@ -280,6 +280,10 @@ class TDAll:
         i_task = i_task.squeeze(1)                                          # 将 i_task task维度去掉(因为该维度值必为1)
         i_task = i_task[..., 0]                                                         # i_task shape (n_episode)
         return q, i_task
+    
+    def matrix(self, q_eval, action): 
+        q_eval = q_eval[0].gather(1, torch.tensor([[action, action, action]]).t()).squeeze(-1).unsqueeze(0)
+        return q_eval
 
 
     def init_hidden(self, episode_num):
