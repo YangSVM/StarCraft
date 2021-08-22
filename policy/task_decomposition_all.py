@@ -299,6 +299,12 @@ class TDAll:
         i_task = i_task[..., 0]                                                         # i_task shape (n_episode)
         return q, i_task
 
+    def matrix(self, q_eval, action): 
+        q_table_shape = list(q_eval.shape)
+        q_table_shape[-1] -= 1 
+        q_eval = q_eval[..., 0].unsqueeze(-1).expand(q_table_shape) * q_eval[..., 1:]
+        q_eval = q_eval[0].gather(1, torch.tensor([[action, action, action]]).t()).squeeze(-1).unsqueeze(0)
+        return q_eval
 
     def init_hidden(self, episode_num):
         # 为每个episode中的每个agent都初始化一个eval_hidden、target_hidden
