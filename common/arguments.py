@@ -36,6 +36,7 @@ def get_common_args():
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
     parser.add_argument('--task_dec_type', type=str, default='', help='which type would you want. n_enemy, equal, unit_type. default sum')
     parser.add_argument('--multi_process_n', type=int, default=5, help='whether to use multi process or not')
+    parser.add_argument('--lr', type=float, default=5e-4, help='learning rate')
     args = parser.parse_args()
     return args
 
@@ -78,7 +79,7 @@ def get_mixer_args(args):
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 5e-4
+    # args.lr = 5e-4
 
     # epsilon greedy
     args.epsilon = 1
@@ -173,7 +174,7 @@ def get_task_decomposition_args(args):
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 5e-5
+    # args.lr = 5e-5
 
     # epsilon greedy
     args.epsilon = 1
