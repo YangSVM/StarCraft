@@ -202,6 +202,7 @@
 - 复杂图上的效果。用最原始的版本，在hard的map上看看
 -  尝试10:1
 - 从实验结果出发。
+- epsilong
 
 ## 各版本网络介绍(按照policy分类)
 - task_decomposition: (按照选用的rnn分类。在代码中eval_rnn 和target_rnn改用模型即实现不同功能)
