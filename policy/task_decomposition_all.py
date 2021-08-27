@@ -80,6 +80,7 @@ class TDAll:
                                                              batch['r'],  batch['avail_u'], batch['avail_u_next'],\
                                                              batch['terminated']
         mask = 1 - batch["padded"].float()  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
+        n_actions = avail_u.shape[-1]
 
         # q_evals (n_episode, max_episode_len， n_agents， n_tasks , n_actions )
         # i_task_target shape: (n_episode, max_episode_len， n_agents)
@@ -116,7 +117,16 @@ class TDAll:
         
         q_targets_seletor_shape = list(q_targets.shape)
         q_targets_seletor_shape[-1] = 1
+        # q_targets_seletor shape : (n_episode, episode_len, n_agents, n_tasks, 1)
         q_targets_seletor = q_targets_seletor.argmax(dim=-1).unsqueeze(-1).expand(q_targets_seletor_shape)
+        # add epsilon
+        
+        rand = torch.rand(q_targets_seletor_shape)
+        action_rand_selector = rand<epsilon
+        action_rand = torch.randint(n_actions, q_targets_seletor_shape)
+        q_targets_seletor = q_targets_seletor.clone()
+        q_targets_seletor[action_rand_selector] = action_rand[action_rand_selector]
+        q_targets_seletor = q_targets_seletor      
         q_targets =  torch.gather(q_targets, dim=-1, index=q_targets_seletor).squeeze(-1)   # shape: (n_episode, episode_len, n_agents, n_tasks)
 
 

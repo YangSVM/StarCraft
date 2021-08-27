@@ -62,12 +62,19 @@ class Runner:
             if self.args.alg.find('coma') > -1 or self.args.alg.find('central_v') > -1 or self.args.alg.find('reinforce') > -1:
                 self.agents.train(episode_batch, train_steps, self.rolloutWorker.epsilon)
                 train_steps += 1
+            elif self.args.alg.find('task_decomposition') > -1:
+                self.buffer.store_episode(episode_batch)
+                for train_step in range(self.args.train_steps):
+                    mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
+                    self.agents.train(mini_batch, train_steps, self.rolloutWorker.epsilon)
+                    train_steps += 1
             else:
                 self.buffer.store_episode(episode_batch)
                 for train_step in range(self.args.train_steps):
                     mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
+
         if self.args.matrix_game == False: 
             win_rate, episode_reward = self.evaluate()
             print('win_rate is ', win_rate)
