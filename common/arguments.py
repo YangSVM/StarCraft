@@ -35,7 +35,7 @@ def get_common_args():
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
     parser.add_argument('--task_dec_type', type=str, default='', help='which type would you want. n_enemy, equal, unit_type. default sum')
     parser.add_argument('--multi_process_n', type=int, default=5, help='whether to use multi process or not')
-    parser.add_argument('--matrix_game', type=bool, default=True, help='whether run under matrix game environment, only for td_all & qmix')
+    parser.add_argument('--matrix_game', type=bool, default=False, help='whether run under matrix game environment, only for td_all & qmix')
     parser.add_argument('--matrix_difficulty', type=str, default='simple', help='which matrix game env to choose')
     args = parser.parse_args()
     return args
