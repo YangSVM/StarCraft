@@ -38,6 +38,7 @@ class RolloutWorker:
         if self.args.epsilon_anneal_scale == 'episode':
             epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
 
+        maven_z = None
         # sample z for maven
         if self.args.alg == 'maven':
             state = self.env.get_state()
@@ -50,20 +51,25 @@ class RolloutWorker:
 
         while not terminated and step < self.episode_limit:
             # time.sleep(0.2)
+            if self.args.matrix_game == True: 
+                if step == 0 and evaluate: 
+                    # 9个动作对都尝试一下，调一个在agent里的函数，这个函数先调eval得到task的一列
+                    # 再计算hypernet和传入的q值
+                    # 再把那一列与选的动作相乘，传到mixing网络中，其实好像就是乘一下？
+                    # 最后输出
+                    if self.args.alg == 'task_decomposition_all': 
+                        self.agents.evaluate_TDall()
+                    elif self.args.alg == 'qmix': 
+                        self.agents.evaluate_qmix()
+                    elif self.args.alg == 'task_decomposition_all_without_task': 
+                        self.agents.evaluate_TDall_without_task()
             obs = self.env.get_obs()
             state = self.env.get_state()
             actions, avail_actions, actions_onehot = [], [], []
             for agent_id in range(self.n_agents):
                 avail_action = self.env.get_avail_agent_actions(agent_id)
-                if self.args.alg == 'maven':
-                    action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
+                action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
                                                        avail_action, epsilon, maven_z, evaluate)
-                elif self.args.alg == 'task_decomposition':
-                    action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
-                                                       avail_action, epsilon, evaluate)
-                else:
-                    action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
-                                                       avail_action, epsilon, evaluate)
                 # generate onehot vector of th action
                 action_onehot = np.zeros(self.args.n_actions)
                 action_onehot[action] = 1
@@ -73,7 +79,10 @@ class RolloutWorker:
                 last_action[agent_id] = action_onehot
 
             reward, terminated, info = self.env.step(actions)
-            win_tag = True if terminated and 'battle_won' in info and info['battle_won'] else False
+            if self.args.matrix_game == False: 
+                win_tag = True if terminated and 'battle_won' in info and info['battle_won'] else False
+            else: 
+                win_tag = True if terminated and info else False
             o.append(obs)
             s.append(state)
             u.append(np.reshape(actions, [self.n_agents, 1]))

@@ -1,6 +1,5 @@
 import argparse
 
-from numpy.lib.function_base import select
 
 """
 Here are the param for the training
@@ -20,7 +19,7 @@ def get_common_args():
     # The alternative algorithms are vdn, coma, central_v, qmix, qtran_base,
     # qtran_alt, reinforce, coma+commnet, central_v+commnet, reinforce+commnet，
     # coma+g2anet, central_v+g2anet, reinforce+g2anet, maven
-    parser.add_argument('--alg', type=str, default='iql', help='the algorithm to train the agent')
+    parser.add_argument('--alg', type=str, default='task_decomposition_all', help='the algorithm to train the agent')
     parser.add_argument('--n_steps', type=int, default=2000000, help='total time steps')
     parser.add_argument('--n_episodes', type=int, default=1, help='the number of episodes before once training')
     parser.add_argument('--last_action', type=bool, default=True, help='whether to use the last action to choose action')
@@ -36,7 +35,8 @@ def get_common_args():
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
     parser.add_argument('--task_dec_type', type=str, default='', help='which type would you want. n_enemy, equal, unit_type. default sum')
     parser.add_argument('--multi_process_n', type=int, default=5, help='whether to use multi process or not')
-    parser.add_argument('--lr', type=float, default=5e-4, help='learning rate')
+    parser.add_argument('--matrix_game', type=bool, default=False, help='whether run under matrix game environment, only for td_all & qmix')
+    parser.add_argument('--matrix_difficulty', type=str, default='simple', help='which matrix game env to choose')
     args = parser.parse_args()
     return args
 
@@ -169,13 +169,13 @@ def get_reinforce_args(args):
 
 def get_task_decomposition_args(args):
     # network: 
-    args.rnn_hidden_dim = 64
+    args.rnn_hidden_dim = 64*args.n_tasks
     args.qmix_hidden_dim = 32 
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    # args.lr = 5e-5
-
+    args.lr = 5e-4
+    args.mix_lr = 5e-4
     # epsilon greedy
     args.epsilon = 1
     args.min_epsilon = 0.05

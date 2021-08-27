@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch.distributions import Categorical
-
+import copy
 
 # Agent no communication
 class Agents:
@@ -49,6 +49,32 @@ class Agents:
         else:
             raise Exception("No such algorithm")
         self.args = args
+        if self.args.matrix_game == True: 
+            self.file_handler = open('matrix game_{}.txt'.format(args.time), mode = 'w')
+            # self.q_matrix = open('q_matrix.txt', mode = 'w')
+            # state0情况初始化
+            inputs = [0, 0, 0]
+            last_action = [0., 0., 0.]
+            agent_id_0 = np.zeros(self.n_agents)
+            agent_id_0[0] = 1.
+            agent_id_1 = np.zeros(self.n_agents)
+            agent_id_1[1] = 1.
+            if self.args.last_action:
+                inputs = np.hstack((inputs, last_action))
+            inputs_0 = copy.deepcopy(inputs)
+            inputs_1 = copy.deepcopy(inputs)
+            if self.args.reuse_network:
+                inputs_0 = np.hstack((inputs_0, agent_id_0))
+                inputs_1 = np.hstack((inputs_1, agent_id_1))
+            self.inputs_0 = torch.tensor(inputs_0, dtype=torch.float32).unsqueeze(0)
+            self.inputs_1 = torch.tensor(inputs_1, dtype=torch.float32).unsqueeze(0)
+            obs = torch.zeros([3])
+            self.obs = obs.unsqueeze(0).unsqueeze(0)
+            if self.args.alg.find('task_decomposition_all') > -1:
+                self.hidden = torch.zeros([1, 192])
+            elif self.args.alg == 'qmix': 
+                self.hidden = torch.zeros([1, 64])
+
 
     def choose_action(self, obs, last_action, agent_num, avail_actions, epsilon, maven_z=None, evaluate=False):
         ''' 选择argmax的动作，考虑epsilon探索
@@ -92,6 +118,15 @@ class Agents:
             q_value = q_value_all.sum(dim=-2)
         else:
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
+        if self.args.matrix_game == True and evaluate: 
+            if self.args.alg == 'task_decomposition_all': 
+                print(obs, ': agent', agent_num, _ , q_value)
+                self.file_handler.write(str(obs) + ': agent' + str(agent_num) + str(_) + str(q_value) + '\n')
+                self.file_handler.flush()
+            elif self.args.alg == 'qmix' or self.args.alg == 'task_decomposition_all_without_task': 
+                print(obs, ':agent', agent_num, q_value)
+                self.file_handler.write(str(obs) + ':agent' + str(agent_num) + str(q_value) + '\n')
+                self.file_handler.flush()
 
 
         # choose action from q value
@@ -104,6 +139,67 @@ class Agents:
             else:
                 action = torch.argmax(q_value)
         return action
+
+    def evaluate_TDall(self): 
+        # 直接在里面存到txt里面
+        q_value_0, _ = self.policy.eval_rnn(self.inputs_0, self.hidden.detach())
+        q_value_1, _ = self.policy.eval_rnn(self.inputs_1, self.hidden.detach())
+        matri = np.empty((3, 3, 3), dtype=float)
+        mat = np.empty((3, 3), dtype=float)
+        for i in range(0, 3): 
+            for j in range(0, 3): 
+                q_val_0 = self.policy.matrix(q_value_0, i)
+                q_val_1 = self.policy.matrix(q_value_1, j)
+
+                q = torch.cat([q_val_0, q_val_1], dim = 0)
+                q = q.unsqueeze(0).unsqueeze(0) # 1*1*2*3
+                hyper_networks, q_values_list = self.policy.eval_task_net(q, self.obs)
+                q_tasks = self.policy.calc_Qis(q_values_list, hyper_networks, is_grad4rnn=False)
+                mat[i][j] = sum(q_tasks).item()
+                for k in range(0, 3): 
+                    matri[i][j][k] = q_tasks[k].item()
+        print(str(matri))
+        print(str(mat))
+        self.file_handler.write(str(matri) + '\n'+str(mat) + '\n')
+        self.file_handler.flush()
+    
+    def evaluate_qmix(self): 
+        q_value_0, _ = self.policy.eval_rnn(self.inputs_0, self.hidden.detach())
+        q_value_1, _ = self.policy.eval_rnn(self.inputs_1, self.hidden.detach())
+        matri = np.empty((3, 3), dtype=float)
+        for i in range(0, 3): 
+            for j in range(0, 3): 
+                q_val_0 = self.policy.matrix(q_value_0, i)
+                q_val_1 = self.policy.matrix(q_value_1, j)
+
+                q = torch.cat([q_val_0, q_val_1], dim = 0)
+                q = q.unsqueeze(0).unsqueeze(0) # 1*1*2*3
+                q_total_eval = self.policy.eval_qmix_net(q, self.obs)
+                matri[i][j] = q_total_eval
+        print(str(matri))
+        self.file_handler.write(str(matri) + '\n')
+        self.file_handler.flush()
+    
+    def evaluate_TDall_without_task(self):
+        # 直接在里面存到txt里面
+        q_value_0, _ = self.policy.eval_rnn(self.inputs_0, self.hidden.detach())
+        q_value_1, _ = self.policy.eval_rnn(self.inputs_1, self.hidden.detach())
+        matri = np.empty((3, 3), dtype=float)
+        for i in range(0, 3): 
+            for j in range(0, 3): 
+        
+                q_val_0 = self.policy.matrix(q_value_0, i)
+                q_val_1 = self.policy.matrix(q_value_1, j)
+
+                q = torch.cat([q_val_0, q_val_1], dim = 0)
+                q = q.unsqueeze(0).unsqueeze(0) # 1*1*2*3
+                hyper_networks, q_values_list = self.policy.eval_task_net(q, self.obs)
+                q_tasks = self.policy.calc_q_total(q_values_list, hyper_networks, is_grad4rnn=False)
+                q_total_eval = sum(q_tasks).item()
+                matri[i][j] = q_total_eval
+        print(str(matri))
+        self.file_handler.write(str(matri) + '\n')
+        self.file_handler.flush()
 
 
 
@@ -236,13 +332,3 @@ class CommAgents:
         self.policy.learn(batch, max_episode_len, train_step, epsilon)
         if train_step > 0 and train_step % self.args.save_cycle == 0:
             self.policy.save_model(train_step)
-
-
-
-
-
-
-
-
-
-

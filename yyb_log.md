@@ -189,3 +189,28 @@
 
 ## 存在问题
 - 不传0版本的时候，q可能会出现选择了任务i，但是别的任务的q更大的情况...是不是不合理？是否考虑使用q矩阵先任务维度求和，选择q最大的版本
+
+
+## 改进方向
+- mixing 输入onehot代替的q。比如选择对应动作2，输入值为(0,0,q)
+- 蓝线不更新，只更新红线，看是否能够学准：只考虑能够学准的网络版本；
+- 两个网络使用不同的学习率
+- 确认Mixing网络是否是对当前策略的评估，而不是最优策略。
+- 使用不同的网络结构
+
+## 0826改进方向
+- 复杂图上的效果。用最原始的版本，在hard的map上看看
+-  尝试10:1
+- 从实验结果出发。
+- epsilong
+
+## 各版本网络介绍(按照policy分类)
+- task_decomposition: (按照选用的rnn分类。在代码中eval_rnn 和target_rnn改用模型即实现不同功能)
+  - TaskRNN: 最原始版本。有task_score。传0。task_score和q值相乘传进去。
+  - TaskRNNMax: 没有task_score。根据矩阵中的最大值选择task。传0。
+- task_decomposition_all: 
+  - 仅能选用task_rnn_all.py中的TaskRNNAll。有task_score。不传0。task_score和q值相乘传进去。
+- task_decomposition_all_without_task
+  - TaskRNNAllwoTask：没有task_score。不传0。按列求和选出最高的action，传到各个网络。
+  - TaskRNNAllwoTask(103): 更改梯度更新
+  - TaskRNNAllwoTask(8.17更新104)：有task_score。不传0。相乘后，按列求和选出最高的action，传到各个网络。()

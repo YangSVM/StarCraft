@@ -1,4 +1,5 @@
-from policy.qtran_alt import QtranAlt
+'''不传0。没有task score。按列求和选择最优动作。
+'''
 import torch
 import os
 from network.task_rnn_all import TaskRNNAll, TaskRNNAllwoTask
@@ -50,14 +51,15 @@ class TDAll:
 
         self.eval_parameters = list(self.eval_task_net.parameters()) + list(self.eval_rnn.parameters())
         if args.optimizer == "RMS":
-            self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=args.lr)
+            self.optimizer_rnn = torch.optim.RMSprop(self.eval_rnn.parameters(), lr=args.lr)
+            self.optimizer_mix = torch.optim.RMSprop(self.eval_task_net.parameters(), lr=args.lr*10)
 
 
         # 执行过程中，要为每个agent都维护一个eval_hidden
         # 学习过程中，要为每个episode的每个agent都维护一个eval_hidden、target_hidden
         self.eval_hidden = None
         self.target_hidden = None
-        print('Init alg Task Decomposition')
+        print('Init alg Task Decomposition without task')
 
     def learn(self, batch, max_episode_len, train_step, epsilon=None):  # train_step表示是第几次学习，用来控制更新target_net网络的参数
         '''
@@ -142,14 +144,17 @@ class TDAll:
         loss2 = (masked_td_task_error ** 2).sum() / task_mask.sum()
 
         # loss = loss1+loss2
-        self.optimizer.zero_grad()
+        self.optimizer_rnn.zero_grad()
+        self.optimizer_mix.zero_grad()
+        # loss1.backward(retain_graph=True)
         loss1.backward()
         # for parm in self.eval_task_net.parameters():
         #     x =parm.grad.data.cpu().numpy()
         loss2.backward()
         # loss.backward()
         torch.nn.utils.clip_grad_norm_(self.eval_parameters, self.args.grad_norm_clip)
-        self.optimizer.step()
+        self.optimizer_rnn.step()
+        self.optimizer_mix.step()
 
         if train_step > 0 and train_step % self.args.target_update_cycle == 0:
             self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
@@ -173,7 +178,8 @@ class TDAll:
             if is_grad4rnn:
                 hidden = F.elu(torch.bmm(qi, w1.detach()) + b1.detach())  # (1920, 1, 32)
                 Qi = torch.bmm(hidden, w2.detach()) + b2.detach()  # (1920, 1, 1)
-
+                # hidden = F.elu(torch.bmm(qi, w1) + b1)  # (1920, 1, 32)
+                # Qi = torch.bmm(hidden, w2) + b2  # (1920, 1, 1)
             else:
                 hidden = F.elu(torch.bmm(qi.detach(), w1) + b1)  # (1920, 1, 32)
                 Qi = torch.bmm(hidden, w2) + b2  # (1920, 1, 1)
@@ -274,6 +280,10 @@ class TDAll:
         i_task = i_task.squeeze(1)                                          # 将 i_task task维度去掉(因为该维度值必为1)
         i_task = i_task[..., 0]                                                         # i_task shape (n_episode)
         return q, i_task
+    
+    def matrix(self, q_eval, action): 
+        q_eval = q_eval[0].gather(1, torch.tensor([[action, action, action]]).t()).squeeze(-1).unsqueeze(0)
+        return q_eval
 
 
     def init_hidden(self, episode_num):

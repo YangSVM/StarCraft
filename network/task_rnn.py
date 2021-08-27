@@ -1,13 +1,12 @@
-from numpy.lib.type_check import imag
-from torch._C import qscheme
 import torch.nn as nn
 import torch.nn.functional as f
 import torch
 import numpy as np
 
 class TaskRNN(nn.Module):
-    # Because all the agents share the same network, input_shape=obs_shape+n_actions+n_agents
+    # 选择最大的task score的任务后，输出该任务所有动作的q值
     def __init__(self, input_shape, args):
+        # input_shape: (obs_shape + n_actions[last action] + n_agent).
         super(TaskRNN, self).__init__()
         self.args = args
         self.n_tasks = args.n_tasks
@@ -22,7 +21,7 @@ class TaskRNN(nn.Module):
             obs: (n_episode,  obs_shape+n_actions+n_agents). or (n_episode*n_agent, obs_shape+n_actions+n_agents)
             hidden_state: (n_episode, n_agent, rnn_hidden_dim)
         Return:
-            q: (n_episode,  n_actions), or (n_episode*n_agent,  n_actions)
+            q: (n_episode,  n_actions), or (n_episode*n_agent,  n_actions)。最大task_score的各个动作的q。
             i_task: (n_episode) or (n_episode*n_agent)
         '''
 
@@ -59,14 +58,15 @@ class TaskRNN(nn.Module):
 
 
 class TaskRNNMax(nn.Module):
-    # Because all the agents share the same network, input_shape=obs_shape+n_actions+n_agents
-    def __init__(self, input_shape, args):
+    # 选择最大的q值，根据q的行选择的任务后，输出该任务所有动作的q值。没有task score
+    def __init__(self, input_shape, args): 
+        # input_shape: (obs_shape + n_actions[last action] + n_agent).
         super(TaskRNNMax, self).__init__()
         self.args = args
         self.n_tasks = args.n_tasks
         self.fc1 = nn.Linear(input_shape, args.rnn_hidden_dim)
         self.rnn = nn.GRUCell(args.rnn_hidden_dim, args.rnn_hidden_dim)
-        # args.n_actions +1 ：动作维数+task selector. 每个任务不同的策略。
+        # args.n_actions ：动作维数. 每个任务不同的策略。没有task score。
         self.fc2 = nn.Linear(args.rnn_hidden_dim, args.n_actions * args.n_tasks)
 
     def forward(self, obs, hidden_state, evaluate = False, num = 0):
@@ -112,8 +112,8 @@ class TaskRNNMax(nn.Module):
         i_task_shape = list(q_shape)
         i_task_shape[-2] =  1
         i_task = i_task.expand(i_task_shape)                # i_task_shape   (n_episode, 1, n_actions)
-        q = torch.gather(q, dim=-2, index=i_task)
-        q = q.squeeze(-2)
+        q = torch.gather(q, dim=-2, index=i_task)   # q.shape:   (n_episode, 1, n_actions)
+        q = q.squeeze(-2)                                               # q.shape:   (n_episode, n_actions)
         i_task = i_task.squeeze(1)
         i_task = i_task[..., 0]                         #  (n_episode*n_agent)
 
